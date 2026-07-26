@@ -63,14 +63,31 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
 
   // One McpServer + transport pair per active session (MCP spec: a server can't
   // be re-initialized once initialize() runs). Routed by mcp-session-id header.
-  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
+  type Session = { server: McpServer; transport: StreamableHTTPServerTransport; lastSeen: number };
+  const sessions = new Map<string, Session>();
 
-  async function getOrCreateSession(
-    existingSessionId: string | undefined,
-  ): Promise<{ server: McpServer; transport: StreamableHTTPServerTransport }> {
+  // transport.onclose is the only other reclaim path, and clients that never send
+  // DELETE (scheduled/headless MCP clients, reconnects) never fire it — so without
+  // this sweep the map grows one McpServer + full tool registration at a time
+  // until the host OOMs. Seen in production on a 256 MB VM: ~3 days to SIGKILL.
+  const SESSION_IDLE_MS = 30 * 60_000;
+  const sweep = setInterval(() => {
+    const cutoff = Date.now() - SESSION_IDLE_MS;
+    for (const [id, entry] of [...sessions]) {
+      if (entry.lastSeen > cutoff) continue;
+      sessions.delete(id);
+      void entry.transport.close().catch(() => undefined);
+    }
+  }, 5 * 60_000);
+  sweep.unref();
+
+  async function getOrCreateSession(existingSessionId: string | undefined): Promise<Session> {
     if (existingSessionId) {
       const existing = sessions.get(existingSessionId);
-      if (existing) return existing;
+      if (existing) {
+        existing.lastSeen = Date.now();
+        return existing;
+      }
     }
     const newId = randomUUID();
     const newServer = new McpServer({ name: "totem", version: "1.4.4" });
@@ -83,7 +100,7 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
       sessions.delete(newId);
     };
     await newServer.connect(newTransport as Parameters<typeof newServer.connect>[0]);
-    const entry = { server: newServer, transport: newTransport };
+    const entry: Session = { server: newServer, transport: newTransport, lastSeen: Date.now() };
     sessions.set(newId, entry);
     return entry;
   }
