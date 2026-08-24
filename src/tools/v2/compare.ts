@@ -24,7 +24,10 @@ export function registerCompare(server: McpServer, client: WhoopClient): void {
       window: z.enum(["week", "month"]).default("week"),
       end_a: z.iso.date().optional(),
       end_b: z.iso.date().optional(),
-      metrics: z.array(z.enum(COMPARE_METRICS)).default([...COMPARE_METRICS]),
+      metrics: z.array(z.enum(COMPARE_METRICS)).min(1).max(COMPARE_METRICS.length).refine(
+        (values) => new Set(values).size === values.length,
+        "metrics must not contain duplicates",
+      ).default([...COMPARE_METRICS]),
     },
     async ({ window, end_a, end_b, metrics }) => {
       const a = end_a ?? todayIso();

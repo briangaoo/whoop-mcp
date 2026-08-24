@@ -194,29 +194,29 @@ When Whoop changes a response shape, the projection emits unexpected data, zod's
 
 ---
 
-## The 49 tools
+## The 55 tools
 
-Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked 🔒 are gated — the catalog tool in the same group must be called once per session before they'll run.
+Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked 🔒 need a catalog lookup only when you use an ID rather than the tool's documented exact-name form.
 
 | Group | Tools |
 |---|---|
-| **Snapshots & profile** (4) | `whoop_today` · `whoop_day` · `whoop_profile` · `whoop_calendar` |
+| **Snapshots & profile** (5) | `whoop_today` · `whoop_day` · `whoop_daily_brief` · `whoop_profile` · `whoop_calendar` |
 | **Deep dives** (3) | `whoop_recovery` · `whoop_sleep` · `whoop_strain` |
-| **Trends** (2) | `whoop_trend` · `whoop_compare` |
+| **Trends & planning** (4) | `whoop_trend` · `whoop_trend_pack` · `whoop_weekly_plan` · `whoop_compare` |
 | **Stress + sleep coach** (2) | `whoop_stress` · `whoop_sleep_need` |
-| **Live** (3) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` |
-| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️🔒 · `whoop_activity_delete` ⚠️ |
-| **Strength reads** (6) | `whoop_lift_prs` · `whoop_lift_exercise` 🔒 · `whoop_lift_progression` 🔒 · `whoop_lift_history` · `whoop_lift_library` · `whoop_lift_catalog` |
-| **Strength writes** (3) | `whoop_lift_log` ⚠️🔒 · `whoop_lift_template_save` ⚠️🔒 · `whoop_lift_custom_exercise` ⚠️🔒 |
-| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️🔒 · `whoop_journal_autopop` ⚠️ |
+| **Live** (4) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` · `whoop_activity_now` |
+| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️ · `whoop_activity_delete` ⚠️ |
+| **Strength reads** (7) | `whoop_lift_prs` · `whoop_lift_exercise` · `whoop_lift_progression` · `whoop_lift_history` · `whoop_lift_overview` · `whoop_lift_library` · `whoop_lift_catalog` |
+| **Strength writes** (3) | `whoop_lift_log` ⚠️ · `whoop_lift_template_save` ⚠️ · `whoop_lift_custom_exercise` ⚠️🔒 |
+| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️ · `whoop_journal_autopop` ⚠️ |
 | **Women's health** (3) | `whoop_cycle` · `whoop_cycle_log` ⚠️ · `whoop_symptom_log` ⚠️🔒 |
 | **Coach + performance** (2) | `whoop_coach_ask` ⚠️ · `whoop_performance_assessment` |
 | **Smart alarm** (2) | `whoop_smart_alarm` · `whoop_smart_alarm_set` ⚠️ |
 | **Social** (2) | `whoop_leaderboard` · `whoop_communities` |
-| **Settings** (4) | `whoop_hr_zones` · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
+| **Settings** (5) | `whoop_preferences` · `whoop_hr_zones` · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
 | **Escape hatch** (2) | `whoop_raw` · `whoop_endpoints` |
 
-**Total: 49** (32 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
+**Total: 55** (38 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
 
 ---
 

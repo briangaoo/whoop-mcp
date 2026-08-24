@@ -33,3 +33,10 @@ export function rangeFromDays(days: number, now: Date = new Date()): { start: st
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
   return { start: start.toISOString(), end: end.toISOString() };
 }
+
+/** Canonical timestamp form required by several undocumented Whoop write APIs. */
+export function canonicalUtc(iso: string | number | Date): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) throw new Error("Invalid timestamp; expected an ISO-8601 datetime with an offset.");
+  return date.toISOString();
+}

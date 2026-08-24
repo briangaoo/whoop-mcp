@@ -5,6 +5,7 @@ import { CatalogGate } from "../whoop/session_state.js";
 // Snapshots
 import { registerToday } from "./v2/today.js";
 import { registerDay } from "./v2/day.js";
+import { registerDailyBrief } from "./v2/daily_brief.js";
 import { registerProfile } from "./v2/profile.js";
 import { registerCalendar } from "./v2/calendar.js";
 // Deep dives
@@ -22,6 +23,7 @@ import { registerSleepNeed } from "./v2/sleep_need.js";
 import { registerLiveHr } from "./v2/live_hr.js";
 import { registerLiveState } from "./v2/live_state.js";
 import { registerLiveStress } from "./v2/live_stress.js";
+import { registerActivityNow } from "./v2/activity_now.js";
 // Activities
 import { registerWorkouts } from "./v2/workouts.js";
 import { registerWorkout } from "./v2/workout.js";
@@ -35,6 +37,10 @@ import { registerLiftProgression } from "./v2/lift_progression.js";
 import { registerLiftHistory } from "./v2/lift_history.js";
 import { registerLiftLibrary } from "./v2/lift_library.js";
 import { registerLiftCatalog } from "./v2/lift_catalog.js";
+import { registerLiftOverview } from "./v2/lift_overview.js";
+import { registerTrendPack } from "./v2/trend_pack.js";
+import { registerWeeklyPlan } from "./v2/weekly_plan.js";
+import { registerPreferences } from "./v2/preferences.js";
 // Strength writes
 import { registerLiftLog } from "./v2/lift_log.js";
 import { registerLiftTemplateSave } from "./v2/lift_template_save.js";
@@ -75,18 +81,23 @@ export function registerTools(
   // Reads (32)
   registerToday(server, client);
   registerDay(server, client);
+  registerDailyBrief(server, client);
   registerProfile(server, client);
   registerCalendar(server, client);
   registerRecovery(server, client);
   registerSleep(server, client);
   registerStrain(server, client);
   registerTrend(server, client);
+  registerTrendPack(server, client);
+  registerWeeklyPlan(server, client);
+  registerPreferences(server, client);
   registerCompare(server, client);
   registerStress(server, client);
   registerSleepNeed(server, client);
   registerLiveHr(server, client);
   registerLiveState(server, client);
   registerLiveStress(server, client);
+  registerActivityNow(server, client);
   registerWorkouts(server, client);
   registerWorkout(server, client);
   registerSportsCatalog(server, client, catalogGate);
@@ -94,6 +105,7 @@ export function registerTools(
   registerLiftExercise(server, client, catalogGate);
   registerLiftProgression(server, client, catalogGate);
   registerLiftHistory(server, client);
+  registerLiftOverview(server, client);
   registerLiftLibrary(server, client);
   registerLiftCatalog(server, client, catalogGate);
   registerJournal(server, client);

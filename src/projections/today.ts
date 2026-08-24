@@ -28,7 +28,7 @@ function gaugeScore(g: Record<string, unknown> | null): number | null {
   return asNumber(g.score_display);
 }
 
-interface SleepSummary {
+export interface SleepSummary {
   performance_pct: number | null;
   total_sleep_ms: number | null;
   time_in_bed_ms: number | null;
@@ -41,7 +41,7 @@ interface SleepSummary {
 // Map a /developer/v2/activity/sleep response → the snapshot's sleep summary.
 // Picks the main (non-nap) sleep whose local end date matches `date`, else the
 // most recent. All stage durations come straight from score.stage_summary.
-function sleepSummary(resp: unknown, date: string): SleepSummary | null {
+export function projectActivitySleepSummary(resp: unknown, date: string): SleepSummary | null {
   const root = isObject(resp) ? resp : {};
   const records = asArray(root.records).filter(
     (r): r is Record<string, unknown> => isObject(r) && r.nap !== true,
@@ -118,7 +118,7 @@ export function projectToday(input: ProjectTodayInput): TodayOutT {
   const workoutsCount = workoutIds.size;
 
   // Sleep summary from the lightweight /developer/v2/activity/sleep endpoint
-  const sleepSum = sleep ? sleepSummary(sleep, date) : null;
+  const sleepSum = sleep ? projectActivitySleepSummary(sleep, date) : null;
   const recProj = recovery ? projectRecovery(recovery, date) : null;
 
   // Activity state

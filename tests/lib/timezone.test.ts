@@ -187,6 +187,16 @@ describe("localizeTimestamps", () => {
     expect(localizeTimestamps("2026-05-25T22:30:00Z", "America/Los_Angeles"))
       .toBe("2026-05-25T15:30:00-07:00");
   });
+
+  it("preserves explicitly UTC-labelled wire timestamps", () => {
+    expect(localizeTimestamps({
+      start: "2026-05-25T22:30:00.000Z",
+      sent_start_utc: "2026-05-25T22:30:00.000Z",
+    }, "America/Los_Angeles")).toEqual({
+      start: "2026-05-25T15:30:00.000-07:00",
+      sent_start_utc: "2026-05-25T22:30:00.000Z",
+    });
+  });
 });
 
 describe("toLocalIso with fixed offset (Whoop profile.timezone_offset form)", () => {

@@ -25,6 +25,7 @@ import type { WhoopClient } from "./whoop/client.js";
 import { registerTools } from "./tools/register.js";
 import { WhoopOAuthProvider, renderConsentForm, setConsentSecurityHeaders } from "./whoop/oauth_provider.js";
 import { CatalogGate } from "./whoop/session_state.js";
+import { BUILD_ID } from "./build_info.js";
 
 export interface HttpServerOptions {
   /** Bearer token clients must present + JWT signing secret. Required, ≥16 chars. */
@@ -137,7 +138,8 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
 
   // Health probe — no auth. Container hosts (Fly/Docker HEALTHCHECK) hit this.
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok" });
+    res.setHeader("x-totem-build", BUILD_ID);
+    res.json({ status: "ok", build: BUILD_ID });
   });
 
   // OAuth 2.1 authorization-server endpoints: /.well-known/oauth-authorization-server,

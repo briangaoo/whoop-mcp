@@ -70,6 +70,11 @@ describe("WhoopClient", () => {
     });
   });
 
+  it("surfaces conventional validation messages but not arbitrary 4xx bodies", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ message: "UTC timestamps required" }), { status: 400 }));
+    await expect(makeClient().get("/x")).rejects.toMatchObject({ message: expect.stringContaining("UTC timestamps required") });
+  });
+
   it("returns undefined on 204 (write endpoints)", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
     const result = await makeClient().put("/x", { foo: 1 });
@@ -94,5 +99,83 @@ describe("WhoopClient", () => {
     expect(url).toContain("d=5");
     expect(url).not.toContain("b=");
     expect(url).not.toContain("c=");
+  });
+
+  it("caches eligible GETs until their TTL expires", async () => {
+    let now = 1_000;
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ score: 1 }), { status: 200 })));
+    const client = new WhoopClient({ getToken: async () => "test-bearer", now: () => now });
+    const today = new Date().toISOString().slice(0, 10);
+    await client.get("/home-service/v1/home", { date: today });
+    await client.get("/home-service/v1/home", { date: today });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    now += 30_001;
+    await client.get("/home-service/v1/home", { date: today });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps date-bearing historical paths longer than current-day paths", async () => {
+    let now = Date.parse("2026-08-24T12:00:00.000Z");
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })));
+    const client = new WhoopClient({ getToken: async () => "test-bearer", now: () => now });
+    await client.get("/progression-service/v2/weekly-plan/home-tile/2026-08-01");
+    now += 6 * 60_000;
+    await client.get("/progression-service/v2/weekly-plan/home-tile/2026-08-01");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await client.get("/progression-service/v2/weekly-plan/home-tile/2026-08-24");
+    now += 6 * 60_000;
+    await client.get("/progression-service/v2/weekly-plan/home-tile/2026-08-24");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("normalizes query ordering and evicts the least-recently-used entry at 100 values", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })));
+    const client = makeClient();
+    await client.get("/home-service/v1/home", { date: "2026-01-01", locale: "en-US" });
+    await client.get("/home-service/v1/home", { locale: "en-US", date: "2026-01-01" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    for (let day = 2; day <= 101; day++) {
+      await client.get("/home-service/v1/home", { date: `2026-01-${String(day).padStart(2, "0")}` });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(101);
+    await client.get("/home-service/v1/home", { date: "2026-01-01", locale: "en-US" });
+    expect(fetchMock).toHaveBeenCalledTimes(102);
+  });
+
+  it("does not retain pending activity records", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ state: "PENDING" }), { status: 200 })));
+    const client = makeClient();
+    await client.get("/developer/v2/activity/workout", { start: "2026-08-01", end: "2026-08-02" });
+    await client.get("/developer/v2/activity/workout", { start: "2026-08-01", end: "2026-08-02" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces simultaneous GETs but never caches completed live values", async () => {
+    let resolveFetch!: (response: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveFetch = resolve; }));
+    const client = makeClient();
+    const first = client.get("/activities-service/v1/user-state");
+    const second = client.get("/activities-service/v1/user-state");
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    resolveFetch(new Response(JSON.stringify({ state: "idle" }), { status: 200 }));
+    await Promise.all([first, second]);
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ state: "workout" }), { status: 200 }));
+    await client.get("/activities-service/v1/user-state");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache failures and invalidates dependent GETs after a write", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("fail", { status: 500 }));
+    const client = makeClient();
+    await expect(client.get("/home-service/v1/home", { date: "2026-05-23" })).rejects.toBeInstanceOf(WhoopServerError);
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ score: 1 }), { status: 200 }));
+    await client.get("/home-service/v1/home", { date: "2026-05-23" });
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await client.post("/core-details-bff/v0/create-activity", {});
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ score: 2 }), { status: 200 }));
+    await client.get("/home-service/v1/home", { date: "2026-05-23" });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

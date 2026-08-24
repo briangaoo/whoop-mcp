@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { projectRecovery } from "../../src/projections/recovery.js";
 import { projectStrain } from "../../src/projections/strain.js";
 import { projectSleep } from "../../src/projections/sleep.js";
-import { projectToday } from "../../src/projections/today.js";
+import { projectActivitySleepSummary, projectToday } from "../../src/projections/today.js";
 import { projectTrend } from "../../src/projections/trend.js";
 import { projectCalendar } from "../../src/projections/calendar.js";
 import { projectSleepNeed } from "../../src/projections/sleep_need.js";
@@ -165,6 +165,12 @@ describe("projectToday for whoop_day (state=null, past date)", () => {
     expect(out.recovery.score).toBe(78);
     expect(out.sleep.performance_pct).toBe(83);
     expect(out.strain.score).toBe(17.8);
+  });
+});
+
+describe("projectActivitySleepSummary", () => {
+  it("uses the scored per-sleep performance metric", () => {
+    expect(projectActivitySleepSummary(load("activity_sleep.json"), "2026-05-28")?.performance_pct).toBe(83);
   });
 });
 

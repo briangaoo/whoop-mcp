@@ -6,21 +6,23 @@ import { projectLiftExercise } from "../../projections/lift_exercise.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import type { CatalogGate } from "../../whoop/session_state.js";
+import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 
 export function registerLiftExercise(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_exercise",
-    "Single exercise composite: metadata + recent sessions (sets with reps/weight/medal) + PRs. Requires calling whoop_lift_catalog first.",
+    "Single exercise composite: metadata + recent sessions (sets with reps/weight/medal) + PRs. Pass an ID or exact official exercise name.",
     {
-      exercise_id: z.string().describe("Exercise code (upper-snake) or UUID from whoop_lift_catalog."),
+      exercise_id: z.string().optional().describe("Exercise code or UUID."),
+      exercise: z.string().optional().describe("Exact official exercise name; avoids a separate catalog lookup."),
     },
-    async ({ exercise_id }) => {
-      const gate = catalogGate.error("exercises", "whoop_lift_catalog");
-      if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
+    async ({ exercise_id, exercise }) => {
+      const resolvedId = exercise_id ?? (exercise ? resolveOfficialExercise(exercise) : null);
+      if (!resolvedId) return { content: [{ type: "text", text: jsonOut({ error: "Provide an exercise_id or exact official exercise name." }) }], isError: true };
       const [info, history, prs] = await Promise.all([
-        client.get(`/weightlifting-service/v1/exercise/${exercise_id}`),
-        client.get(`/weightlifting-service/v3/exercise/${exercise_id}/exercise_history`),
-        client.get(`/weightlifting-service/v3/exercise/${exercise_id}/personal_records`),
+        client.get(`/weightlifting-service/v1/exercise/${resolvedId}`),
+        client.get(`/weightlifting-service/v3/exercise/${resolvedId}/exercise_history`),
+        client.get(`/weightlifting-service/v3/exercise/${resolvedId}/personal_records`),
       ]);
       try {
         const projected = projectLiftExercise({ info, history, prs });

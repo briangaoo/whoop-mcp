@@ -1,8 +1,8 @@
 import type { LiveStressOutT } from "../schemas/live.js";
 import { projectStress } from "./stress.js";
 
-export function projectLiveStress(raw: unknown): LiveStressOutT {
-  const full = projectStress(raw, "1970-01-01");
+export function projectLiveStress(raw: unknown, date: string): LiveStressOutT {
+  const full = projectStress(raw, date);
   return {
     current_level: full.current_level,
     baseline_level: full.baseline_level,

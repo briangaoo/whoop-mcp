@@ -67,6 +67,21 @@ export function registerProfileUpdate(server: McpServer, client: WhoopClient): v
         unit_system: args.unit_system ?? p.unit_system,
       };
       for (const k of Object.keys(merged)) if (merged[k] === undefined || merged[k] === null) delete merged[k];
+      const current: Record<string, unknown> = {
+        first_name: u.first_name,
+        last_name: u.last_name,
+        email: acc.email,
+        birthday: curBirthday,
+        gender: curGender,
+        physiological_baseline: curBaseline ?? (curGender === "FEMALE" ? "FEMALE" : "MALE"),
+        weight: typeof p.weight === "number" ? p.weight : undefined,
+        height: typeof p.height === "number" ? p.height : undefined,
+        city: u.city,
+        state: u.admin_division,
+        country: u.country,
+        unit_system: p.unit_system,
+      };
+      for (const k of Object.keys(current)) if (current[k] === undefined || current[k] === null) delete current[k];
 
       if (merged.country === "US" && (typeof merged.state !== "string" || merged.state.trim() === "")) {
         return {
@@ -80,8 +95,13 @@ export function registerProfileUpdate(server: McpServer, client: WhoopClient): v
           content: [{ type: "text", text: jsonOut(preview("PUT", PATH, { fields_changed: changed, full_body_fields: Object.keys(merged) })) }],
         };
       }
+      const noChange = JSON.stringify(merged) === JSON.stringify(current);
+      if (noChange) {
+        const out = ProfileUpdateOut.parse({ updated: false, no_change: true, fields_updated: changed });
+        return { content: [{ type: "text", text: jsonOut(out) }] };
+      }
       await client.put(PATH, merged);
-      const out = ProfileUpdateOut.parse({ updated: true as const, fields_updated: changed });
+      const out = ProfileUpdateOut.parse({ updated: true, no_change: false, fields_updated: changed });
       return { content: [{ type: "text", text: jsonOut(out) }] };
     },
   );

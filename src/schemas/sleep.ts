@@ -40,7 +40,8 @@ export const SleepOut = z.object({
 export type SleepOutT = z.infer<typeof SleepOut>;
 
 export const SleepEditOut = withPreview(z.object({
-  edited: z.literal(true),
+  edited: z.boolean(),
+  no_change: z.boolean(),
   activity_id: z.string(),
   start: IsoDateTime,
   end: IsoDateTime,
