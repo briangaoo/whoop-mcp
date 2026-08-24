@@ -5,6 +5,7 @@ import { LiveStateOut } from "../../schemas/live.js";
 import { projectLiveState } from "../../projections/live_state.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
+import { liveFreshness } from "../../lib/live_freshness.js";
 
 export function registerLiveState(server: McpServer, client: WhoopClient): void {
   server.tool(
@@ -15,7 +16,7 @@ export function registerLiveState(server: McpServer, client: WhoopClient): void 
       const raw = await client.get("/activities-service/v1/user-state");
       const projected = projectLiveState(raw);
       try {
-        const out = LiveStateOut.parse(projected);
+        const out = LiveStateOut.parse({ ...projected, freshness: liveFreshness(projected.latest_metrics_at) });
         return { content: [{ type: "text", text: jsonOut(out) }] };
       } catch (e) {
         if (e instanceof z.ZodError) throw new WhoopProjectionError("whoop_live_state", e);

@@ -6,6 +6,7 @@ import { projectLiveStress } from "../../projections/live_stress.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
+import { liveFreshness } from "../../lib/live_freshness.js";
 
 export function registerLiveStress(server: McpServer, client: WhoopClient): void {
   server.tool(
@@ -13,10 +14,11 @@ export function registerLiveStress(server: McpServer, client: WhoopClient): void
     "Current stress level (terse). Cheaper than whoop_stress if you just want the latest reading.",
     {},
     async () => {
-      const raw = await client.get(`/health-service/v2/stress-bff/${todayIso()}`);
-      const projected = projectLiveStress(raw);
+      const date = todayIso();
+      const raw = await client.get(`/health-service/v2/stress-bff/${date}`);
+      const projected = projectLiveStress(raw, date);
       try {
-        const out = LiveStressOut.parse(projected);
+        const out = LiveStressOut.parse({ ...projected, freshness: liveFreshness(projected.last_updated_at) });
         return { content: [{ type: "text", text: jsonOut(out) }] };
       } catch (e) {
         if (e instanceof z.ZodError) throw new WhoopProjectionError("whoop_live_stress", e);

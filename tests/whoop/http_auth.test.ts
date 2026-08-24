@@ -94,8 +94,10 @@ describe("HTTP transport: bearer-auth gate", () => {
   it("serves /health without auth (200)", async () => {
     const r = await fetch(`${BASE}/health`);
     expect(r.status).toBe(200);
-    const body = (await r.json()) as { status: string };
+    const body = (await r.json()) as { status: string; build: string };
     expect(body.status).toBe("ok");
+    expect(body.build).toBeTruthy();
+    expect(r.headers.get("x-totem-build")).toBe(body.build);
   });
 
   it("returns 404 for unknown paths even with valid auth", async () => {

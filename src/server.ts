@@ -17,6 +17,7 @@ import { resolveInstallationId } from "./whoop/installation.js";
 import { versionStaleWarning } from "./whoop/device.js";
 import { CatalogGate } from "./whoop/session_state.js";
 import { isValidTimezone } from "./lib/timezone.js";
+import { BUILD_ID } from "./build_info.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = resolve(__dirname, "../.env");
@@ -40,6 +41,7 @@ function chooseStore(): TokenStore {
 }
 
 async function main(): Promise<void> {
+  console.error(`[totem] build=${BUILD_ID}`);
   if (process.env.WHOOP_TIMEZONE && !isValidTimezone(process.env.WHOOP_TIMEZONE)) {
     console.error(`[totem] ignoring invalid WHOOP_TIMEZONE=${JSON.stringify(process.env.WHOOP_TIMEZONE)}; using the Whoop profile or system timezone instead.`);
   }

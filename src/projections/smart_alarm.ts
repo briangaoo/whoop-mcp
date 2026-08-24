@@ -1,5 +1,6 @@
 import type { SmartAlarmOutT } from "../schemas/smart_alarm.js";
 import { isObject, asArray, asBool, asNumber, asString } from "../lib/walk.js";
+import { normalizeClockTime } from "../lib/clock.js";
 
 // Schedule list from /smart-alarm-bff/v1/schedule/all:
 //   alarm_schedule_list[] with alarm_on + scheduled_days, schedule_enabled.
@@ -42,7 +43,7 @@ export function projectSmartAlarm(input: ProjectSmartAlarmInput): SmartAlarmOutT
         schedule_id: asString(s.schedule_id ?? s.id) ?? "",
         enabled: asBool(s.enabled) ?? asBool(s.alarm_on) ?? false,
         days_of_week: days,
-        latest_wake_time: asString(s.latest_wake_time) ?? "",
+        latest_wake_time: normalizeClockTime(asString(s.latest_wake_time) ?? "") ?? "",
         alarm_mode: ((VALID_MODES as readonly string[]).includes(mode ?? "") ? mode : "IN_THE_GREEN") as Mode,
         // The schedule-list response omits these. An empty sleep_goal is the
         // valid write value for IN_THE_GREEN; the account offset comes from prefs.

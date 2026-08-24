@@ -244,7 +244,10 @@ export function localizeTimestamps<T>(value: T, tz: string = getTimezone()): T {
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = localizeTimestamps(v, tz);
+      // Fields explicitly named *_utc are wire-level / audit values. Their
+      // literal UTC form matters (for example write previews show precisely
+      // what will be sent to Whoop), so do not turn them back into local time.
+      out[k] = k.endsWith("_utc") ? v : localizeTimestamps(v, tz);
     }
     return out as T;
   }

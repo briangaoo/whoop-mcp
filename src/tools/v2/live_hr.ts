@@ -5,6 +5,7 @@ import { LiveHrOut } from "../../schemas/live.js";
 import { projectLiveHr } from "../../projections/live_hr.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
+import { liveFreshness } from "../../lib/live_freshness.js";
 
 export function registerLiveHr(server: McpServer, client: WhoopClient): void {
   server.tool(
@@ -15,7 +16,7 @@ export function registerLiveHr(server: McpServer, client: WhoopClient): void {
       const raw = await client.get("/health-tab-bff/v1/health-tab");
       const projected = projectLiveHr(raw);
       try {
-        const out = LiveHrOut.parse(projected);
+        const out = LiveHrOut.parse({ ...projected, freshness: liveFreshness(projected.last_updated_at) });
         return { content: [{ type: "text", text: jsonOut(out) }] };
       } catch (e) {
         if (e instanceof z.ZodError) throw new WhoopProjectionError("whoop_live_hr", e);

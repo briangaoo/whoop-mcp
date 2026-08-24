@@ -19,7 +19,7 @@ describe("projectSmartAlarm — current schedule-list response", () => {
     expect(out.schedules[0]).toMatchObject({
       enabled: true,
       days_of_week: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-      latest_wake_time: "6:25 AM",
+      latest_wake_time: "06:25:00",
     });
   });
 

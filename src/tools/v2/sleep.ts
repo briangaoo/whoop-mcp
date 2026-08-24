@@ -6,6 +6,7 @@ import { projectSleep } from "../../projections/sleep.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
+import { projectActivitySleepSummary } from "../../projections/today.js";
 
 export function registerSleep(server: McpServer, client: WhoopClient): void {
   server.tool(
@@ -14,8 +15,16 @@ export function registerSleep(server: McpServer, client: WhoopClient): void {
     { date: z.iso.date().optional() },
     async ({ date }) => {
       const d = date ?? todayIso();
-      const raw = await client.get("/home-service/v1/deep-dive/sleep/last-night", { date: d });
+      const [raw, activitySleep] = await Promise.all([
+        client.get("/home-service/v1/deep-dive/sleep/last-night", { date: d }),
+        // This is WHOOP's scored per-sleep record, the authoritative source
+        // for sleep performance. The deep-dive's "Hours vs. Needed" card is a
+        // related but distinct, sometimes different metric.
+        client.get("/developer/v2/activity/sleep", { limit: "5" }).catch(() => null),
+      ]);
       const projected = projectSleep(raw, d);
+      const performance = projectActivitySleepSummary(activitySleep, d)?.performance_pct;
+      if (performance !== null && performance !== undefined) projected.performance_pct = performance;
       try {
         const out = SleepOut.parse(projected);
         return { content: [{ type: "text", text: jsonOut(out) }] };

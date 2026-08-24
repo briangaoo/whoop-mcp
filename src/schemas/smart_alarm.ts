@@ -35,6 +35,7 @@ export const SmartAlarmOut = z.object({
 export type SmartAlarmOutT = z.infer<typeof SmartAlarmOut>;
 
 export const SmartAlarmSetOut = withPreview(z.object({
-  updated: z.literal(true),
+  updated: z.boolean(),
+  no_change: z.boolean(),
   mode: z.enum(["schedule", "preferences", "master_enable", "master_disable"]),
 }));
