@@ -49,11 +49,11 @@ export function getProfileTimezone(): string | null {
  *   3. Server's system timezone (Intl default — UTC inside Docker / Fly)
  */
 export function getTimezone(): string {
-  return (
-    process.env.WHOOP_TIMEZONE
-    ?? cachedProfileTz
-    ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
+  const systemTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  for (const candidate of [process.env.WHOOP_TIMEZONE, cachedProfileTz, systemTz, "UTC"]) {
+    if (candidate && isValidTimezone(candidate)) return candidate;
+  }
+  return "UTC";
 }
 
 export function isUtcIso(s: string): boolean {
@@ -100,8 +100,22 @@ export function wallClockIso(
   minute: number,
   tz: string = getTimezone(),
 ): string {
-  const ref = new Date(`${date}T${pad2(hour)}:${pad2(minute)}:00Z`);
-  const offset = Number.isNaN(ref.getTime()) ? "+00:00" : offsetAt(ref, tz);
+  const wallAsUtc = new Date(`${date}T${pad2(hour)}:${pad2(minute)}:00Z`);
+  if (Number.isNaN(wallAsUtc.getTime()) || !isValidTimezone(tz)) {
+    return `${date}T${pad2(hour)}:${pad2(minute)}:00+00:00`;
+  }
+  // Resolve the offset at the represented local wall-clock instant, not at the
+  // same clock fields interpreted as UTC. Iterate because crossing a DST
+  // boundary can change the first candidate's offset (e.g. 03:30 on spring day).
+  let offset = offsetAt(wallAsUtc, tz);
+  for (let i = 0; i < 3; i++) {
+    const sign = offset[0] === "-" ? -1 : 1;
+    const offsetMinutes = sign * (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4, 6)));
+    const candidateInstant = new Date(wallAsUtc.getTime() - offsetMinutes * 60_000);
+    const next = offsetAt(candidateInstant, tz);
+    if (next === offset) break;
+    offset = next;
+  }
   return `${date}T${pad2(hour)}:${pad2(minute)}:00${offset}`;
 }
 
@@ -122,7 +136,19 @@ export function clockLabelToMinutes(label: string | null): number | null {
 function parseFixedOffset(s: string): { sign: "+" | "-"; hh: string; mm: string } | null {
   const m = s.match(FIXED_OFFSET_RE);
   if (!m) return null;
+  if (Number(m[2]) > 23 || Number(m[3]) > 59) return null;
   return { sign: m[1] as "+" | "-", hh: m[2]!, mm: m[3]! };
+}
+
+/** Whether a configured timezone is a supported IANA name or fixed offset. */
+export function isValidTimezone(tz: string): boolean {
+  if (parseFixedOffset(tz)) return true;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz }).format();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

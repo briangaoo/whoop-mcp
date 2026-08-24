@@ -6,9 +6,9 @@ import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
 import { BEHAVIORS_BY_ID } from "../../data/behaviors.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
-export function registerJournalLog(server: McpServer, client: WhoopClient): void {
+export function registerJournalLog(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_journal_log",
     "WRITE: save the full journal entry for a date — this REPLACES the whole day's entry, so first call whoop_journal to read what's already logged today and resend those entries together with your additions, or they'll be wiped. Use whoop_journal_catalog for each behavior_tracker_id and its magnitude type: bare → pass just the id, boolean → add answered_yes, magnitude → add magnitude_value.",
@@ -24,7 +24,7 @@ export function registerJournalLog(server: McpServer, client: WhoopClient): void
       confirm: z.boolean().default(false),
     },
     async ({ date, behaviors, notes, confirm }) => {
-      const gate = gateError("behaviors", "whoop_journal_catalog");
+      const gate = catalogGate.error("behaviors", "whoop_journal_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const d = date ?? todayIso();
       const unknownIds = behaviors

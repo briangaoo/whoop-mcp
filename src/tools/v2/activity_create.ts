@@ -6,11 +6,11 @@ import { preview } from "../../whoop/write_safety.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { SPORTS_BY_ID } from "../../data/sports.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
 const PATH = "/core-details-bff/v0/create-activity";
 
-export function registerActivityCreate(server: McpServer, client: WhoopClient): void {
+export function registerActivityCreate(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_activity_create",
     "WRITE: log a generic off-strap activity for a sport_id (call whoop_sports_catalog first to get one) over a start–end window of at least 1 minute. Preview unless confirm:true.",
@@ -22,12 +22,19 @@ export function registerActivityCreate(server: McpServer, client: WhoopClient): 
       confirm: z.boolean().default(false),
     },
     async ({ sport_id, start, end, gps_enabled, confirm }) => {
-      const gate = gateError("sports", "whoop_sports_catalog");
+      const gate = catalogGate.error("sports", "whoop_sports_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const sport = SPORTS_BY_ID.get(sport_id);
       if (!sport) {
         return {
           content: [{ type: "text", text: jsonOut({ error: `Unknown sport_id ${sport_id}. Use whoop_sports_catalog to look up valid IDs.` }) }],
+          isError: true,
+        };
+      }
+      const durationMs = Date.parse(end) - Date.parse(start);
+      if (durationMs < 60_000) {
+        return {
+          content: [{ type: "text", text: jsonOut({ error: "Activity end must be at least one minute after start." }) }],
           isError: true,
         };
       }
@@ -43,7 +50,7 @@ export function registerActivityCreate(server: McpServer, client: WhoopClient): 
                   sport_name: sport.name,
                   start,
                   end,
-                  duration_ms: new Date(end).getTime() - new Date(start).getTime(),
+                  duration_ms: durationMs,
                 }),
               ),
             },

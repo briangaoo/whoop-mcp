@@ -7,6 +7,8 @@ import {
   setProfileTimezone,
   getProfileTimezone,
   zonedParts,
+  wallClockIso,
+  isValidTimezone,
 } from "../../src/lib/timezone.js";
 import { isoDay } from "../../src/lib/dates.js";
 
@@ -247,6 +249,24 @@ describe("getTimezone priority chain", () => {
     expect(getTimezone()).toBe("-0700");
   });
 
+  it("treats empty WHOOP_TIMEZONE as unset (dotenv `WHOOP_TIMEZONE=` line)", () => {
+    process.env.WHOOP_TIMEZONE = "";
+    setProfileTimezone("-0400");
+    expect(getTimezone()).toBe("-0400");
+  });
+
+  it("keeps live-state/sleep timestamp serialization working with a blank env override", () => {
+    process.env.WHOOP_TIMEZONE = "";
+    setProfileTimezone("-0400");
+    expect(localizeTimestamps({
+      state: "SLEEPING",
+      last_updated_at: "2026-08-24T12:00:00Z",
+    })).toEqual({
+      state: "SLEEPING",
+      last_updated_at: "2026-08-24T08:00:00-04:00",
+    });
+  });
+
   it("falls back to system TZ when env var unset and profile not cached", () => {
     // Don't assert exact system TZ (varies by CI host) — just confirm it
     // returns SOMETHING valid and not our cached/env values.
@@ -254,5 +274,25 @@ describe("getTimezone priority chain", () => {
     expect(typeof tz).toBe("string");
     expect(tz.length).toBeGreaterThan(0);
     expect(tz).not.toBe("-0700");
+  });
+
+  it("ignores invalid env and profile timezone values", () => {
+    process.env.WHOOP_TIMEZONE = "Not/A_Timezone";
+    setProfileTimezone("+9960");
+    expect(isValidTimezone(process.env.WHOOP_TIMEZONE)).toBe(false);
+    expect(isValidTimezone("+9960")).toBe(false);
+    expect(() => new Intl.DateTimeFormat("en-US", { timeZone: getTimezone() })).not.toThrow();
+  });
+});
+
+describe("wallClockIso DST resolution", () => {
+  it("uses the post-transition offset after the spring-forward gap", () => {
+    expect(wallClockIso("2026-03-08", 3, 30, "America/Los_Angeles"))
+      .toBe("2026-03-08T03:30:00-07:00");
+  });
+
+  it("uses the pre-transition offset before spring-forward", () => {
+    expect(wallClockIso("2026-03-08", 1, 30, "America/Los_Angeles"))
+      .toBe("2026-03-08T01:30:00-08:00");
   });
 });

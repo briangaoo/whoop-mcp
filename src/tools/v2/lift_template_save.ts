@@ -6,11 +6,11 @@ import { preview } from "../../whoop/write_safety.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { buildExerciseGroups, type InputExercise } from "../../whoop/build_lift_body.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
 const PATH = "/weightlifting-service/v3/workout-template";
 
-export function registerLiftTemplateSave(server: McpServer, client: WhoopClient): void {
+export function registerLiftTemplateSave(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_template_save",
     "WRITE: create or save-as a Strength Trainer workout template from exercises whose sets can specify reps and/or weight (kg) and/or time_seconds. Call whoop_lift_catalog first for valid exercise_ids; preview unless confirm:true.",
@@ -30,7 +30,7 @@ export function registerLiftTemplateSave(server: McpServer, client: WhoopClient)
       confirm: z.boolean().default(false),
     },
     async ({ name, base_template_key, exercises, confirm }) => {
-      const gate = gateError("exercises", "whoop_lift_catalog");
+      const gate = catalogGate.error("exercises", "whoop_lift_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const inputExercises: InputExercise[] = exercises.map((e) => ({
         exercise_id: e.exercise_id,
