@@ -24,6 +24,7 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import type { WhoopClient } from "./whoop/client.js";
 import { registerTools } from "./tools/register.js";
 import { WhoopOAuthProvider, renderConsentForm, setConsentSecurityHeaders } from "./whoop/oauth_provider.js";
+import { CatalogGate } from "./whoop/session_state.js";
 
 export interface HttpServerOptions {
   /** Bearer token clients must present + JWT signing secret. Required, ≥16 chars. */
@@ -91,7 +92,7 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
     }
     const newId = randomUUID();
     const newServer = new McpServer({ name: "totem", version: "1.4.4" });
-    registerTools(newServer, client);
+    registerTools(newServer, client, new CatalogGate());
     const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => newId,
       enableJsonResponse: true,

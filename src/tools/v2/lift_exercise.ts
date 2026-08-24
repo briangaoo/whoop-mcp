@@ -5,9 +5,9 @@ import { LiftExerciseOut } from "../../schemas/strength.js";
 import { projectLiftExercise } from "../../projections/lift_exercise.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
-export function registerLiftExercise(server: McpServer, client: WhoopClient): void {
+export function registerLiftExercise(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_exercise",
     "Single exercise composite: metadata + recent sessions (sets with reps/weight/medal) + PRs. Requires calling whoop_lift_catalog first.",
@@ -15,7 +15,7 @@ export function registerLiftExercise(server: McpServer, client: WhoopClient): vo
       exercise_id: z.string().describe("Exercise code (upper-snake) or UUID from whoop_lift_catalog."),
     },
     async ({ exercise_id }) => {
-      const gate = gateError("exercises", "whoop_lift_catalog");
+      const gate = catalogGate.error("exercises", "whoop_lift_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const [info, history, prs] = await Promise.all([
         client.get(`/weightlifting-service/v1/exercise/${exercise_id}`),

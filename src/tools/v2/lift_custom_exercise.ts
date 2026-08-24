@@ -6,11 +6,11 @@ import { LiftCustomExerciseOut } from "../../schemas/strength.js";
 import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { EXERCISES_BY_ID } from "../../data/exercises.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
 const PATH = "/weightlifting-service/v2/custom-exercise";
 
-export function registerLiftCustomExercise(server: McpServer, client: WhoopClient): void {
+export function registerLiftCustomExercise(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_custom_exercise",
     "WRITE: create a custom Strength Trainer exercise based on an existing official one. Requires calling whoop_lift_catalog first.",
@@ -48,7 +48,7 @@ export function registerLiftCustomExercise(server: McpServer, client: WhoopClien
       confirm: z.boolean().default(false),
     },
     async (args) => {
-      const gate = gateError("exercises", "whoop_lift_catalog");
+      const gate = catalogGate.error("exercises", "whoop_lift_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const linked = EXERCISES_BY_ID.get(args.push_core_name);
       if (!linked) {

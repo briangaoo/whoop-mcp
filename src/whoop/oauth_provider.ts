@@ -278,16 +278,22 @@ export class WhoopOAuthProvider implements OAuthServerProvider {
     // 2. OAuth-issued JWT.
     const payload = verifyToken(token, this.signingSecret);
     if (payload && payload.typ === "access") {
-      // Audience binding (RFC 8707): a token carrying a `resource` claim should
-      // only be valid at the server it was minted for. LOG-ONLY for now (no
-      // reject): rejecting on a mismatch would 401 a valid Claude token and
-      // brick the connector, and the exact `resource` value Claude sends isn't
-      // verified yet. The log tells us whether a real token would have matched;
-      // flip back to throwing once confirmed.
+      // Audience binding (RFC 8707): legacy tokens without a resource claim
+      // remain valid, but a present claim must identify this exact MCP endpoint.
       if (this.resourceUrl && typeof payload.resource === "string") {
-        const norm = (u: string): string => u.replace(/\/+$/, "");
-        if (norm(payload.resource) !== norm(this.resourceUrl)) {
-          console.error(`[totem] token resource mismatch (got "${payload.resource}", expected "${this.resourceUrl}") — allowing; enforcement is disabled`);
+        const normalizeResource = (value: string): string | null => {
+          try {
+            const url = new URL(value);
+            url.pathname = url.pathname.replace(/\/+$/, "") || "/";
+            return url.toString().replace(/\/$/, url.pathname === "/" ? "/" : "");
+          } catch {
+            return null;
+          }
+        };
+        const actual = normalizeResource(payload.resource);
+        const expected = normalizeResource(this.resourceUrl);
+        if (!actual || !expected || actual !== expected) {
+          throw new InvalidTokenError("access token resource does not match this MCP server");
         }
       }
       const info: AuthInfo = {
@@ -296,7 +302,13 @@ export class WhoopOAuthProvider implements OAuthServerProvider {
         scopes: (payload.scopes as string[]) ?? [],
         expiresAt: payload.exp as number,
       };
-      if (typeof payload.resource === "string") info.resource = new URL(payload.resource);
+      if (typeof payload.resource === "string") {
+        try {
+          info.resource = new URL(payload.resource);
+        } catch {
+          throw new InvalidTokenError("access token contains an invalid resource URL");
+        }
+      }
       return info;
     }
     // Throw the SDK's typed error so the bearer middleware returns 401 (a

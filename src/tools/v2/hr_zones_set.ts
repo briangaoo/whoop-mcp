@@ -11,7 +11,7 @@ export function registerHrZonesSet(server: McpServer, client: WhoopClient): void
     "WRITE: set your heart-rate zones. mode=max_hr → pass max_hr (bpm) and Whoop recomputes the 5 zones; mode=custom → pass all 5 zones (ZONE_1..ZONE_5, each with min/max bpm).",
     {
       mode: z.enum(["max_hr", "custom"]),
-      max_hr: z.number().int().optional().describe("Required for mode=max_hr."),
+      max_hr: z.number().int().positive().optional().describe("Required for mode=max_hr."),
       zones: z
         .array(z.object({
           id: z.enum(["ZONE_1", "ZONE_2", "ZONE_3", "ZONE_4", "ZONE_5"]),
@@ -40,6 +40,29 @@ export function registerHrZonesSet(server: McpServer, client: WhoopClient): void
             content: [{ type: "text", text: jsonOut({ error: "mode=custom requires exactly 5 zones" }) }],
             isError: true,
           };
+        }
+        const expectedIds = ["ZONE_1", "ZONE_2", "ZONE_3", "ZONE_4", "ZONE_5"];
+        for (let i = 0; i < zones.length; i++) {
+          const zone = zones[i]!;
+          const previous = zones[i - 1];
+          if (zone.id !== expectedIds[i]) {
+            return {
+              content: [{ type: "text", text: jsonOut({ error: "Custom zones must contain ZONE_1 through ZONE_5 exactly once, in order." }) }],
+              isError: true,
+            };
+          }
+          if (zone.min >= zone.max) {
+            return {
+              content: [{ type: "text", text: jsonOut({ error: `${zone.id} must have min lower than max.` }) }],
+              isError: true,
+            };
+          }
+          if (previous && zone.min < previous.max) {
+            return {
+              content: [{ type: "text", text: jsonOut({ error: `${zone.id} overlaps ${previous.id}; zone ranges must be ordered and non-overlapping.` }) }],
+              isError: true,
+            };
+          }
         }
         path = "/hr-zones-service/v1/bff/custom";
         body = { zones, is_custom: true };

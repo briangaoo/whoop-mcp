@@ -6,11 +6,12 @@ import { preview } from "../../whoop/write_safety.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { buildExerciseGroups } from "../../whoop/build_lift_body.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
+import { isValidTimezone } from "../../lib/timezone.js";
 
 const PATH = "/weightlifting-service/v2/weightlifting-workout/activity";
 
-export function registerLiftLog(server: McpServer, client: WhoopClient): void {
+export function registerLiftLog(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_log",
     "WRITE: log a finished strength workout — pass exercises, each with sets (reps and/or weight in kg and/or time_seconds). Call whoop_lift_catalog first to get valid exercise_ids; preview unless confirm:true.",
@@ -30,10 +31,16 @@ export function registerLiftLog(server: McpServer, client: WhoopClient): void {
       confirm: z.boolean().default(false),
     },
     async ({ name, start, end, exercises, confirm }) => {
-      const gate = gateError("exercises", "whoop_lift_catalog");
+      const gate = catalogGate.error("exercises", "whoop_lift_catalog");
       if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       const endTs = end ? new Date(end).getTime() : Date.now();
       const startTs = start ? new Date(start).getTime() : endTs - 30 * 60 * 1000;
+      if (endTs <= startTs) {
+        return {
+          content: [{ type: "text", text: jsonOut({ error: "Strength workout end must be after start." }) }],
+          isError: true,
+        };
+      }
       const { workout_groups, set_count, unknown_exercises } = buildExerciseGroups(exercises, startTs);
       if (unknown_exercises.length > 0) {
         return {
@@ -55,7 +62,10 @@ export function registerLiftLog(server: McpServer, client: WhoopClient): void {
       // logged workout); else fall back to the system zone (correct for local
       // stdio use). Never send a bare numeric offset.
       const tzEnv = process.env.WHOOP_TIMEZONE;
-      const timezone = tzEnv && tzEnv.includes("/") ? tzEnv : Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezone = tzEnv && tzEnv.includes("/") && isValidTimezone(tzEnv)
+        ? tzEnv
+        : isValidTimezone(systemTimezone) ? systemTimezone : "UTC";
       const body = {
         name: name ?? new Date(endTs).toISOString().slice(0, 10),
         during: `['${new Date(startTs).toISOString()}','${new Date(endTs).toISOString()}')`,

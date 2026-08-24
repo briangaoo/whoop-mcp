@@ -4,6 +4,19 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Security
+
+- OAuth access tokens with a `resource` claim now require an exact normalized match to this deployment's `/mcp` endpoint. Mismatches return `invalid_token`; legacy tokens without the optional claim remain compatible.
+- Updated vulnerable transitive HTTP, URL-parsing, and rate-limit dependencies through the latest compatible MCP SDK and lockfile resolutions.
+
+### Fixed
+
+- Catalog lookup gates are now isolated per MCP connection instead of leaking unlock state across HTTP sessions.
+- Write tools reject invalid activity/lift time windows, malformed HR zones, invalid Smart Alarm schedules, and empty or malformed profile updates before preview or mutation.
+- **Live sleep/activity status no longer fails with `Invalid time zone specified`.** A blank dotenv override (`WHOOP_TIMEZONE=`) previously won over the valid fixed offset auto-detected from the profile (for example `-0400`), so `whoop_live_state` and `whoop_sleep` could both error instead of answering whether the member was sleeping, working out, or idle. Blank/invalid overrides are now ignored, fixed profile offsets remain supported, and wall-clock timestamps resolve the correct offset across DST transitions.
+- Blank installation IDs now persist correctly, and a refreshed access token remains usable if disk persistence fails.
+- Whoop Coach polling now uses a real 30-second deadline and reports missing conversation/turn IDs clearly.
+
 ## [1.4.4] — 2026-06-11
 
 ### Changed

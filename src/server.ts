@@ -15,6 +15,8 @@ import { registerTools } from "./tools/register.js";
 import { startTimezoneAutoDetect } from "./whoop/init_timezone.js";
 import { resolveInstallationId } from "./whoop/installation.js";
 import { versionStaleWarning } from "./whoop/device.js";
+import { CatalogGate } from "./whoop/session_state.js";
+import { isValidTimezone } from "./lib/timezone.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = resolve(__dirname, "../.env");
@@ -38,6 +40,9 @@ function chooseStore(): TokenStore {
 }
 
 async function main(): Promise<void> {
+  if (process.env.WHOOP_TIMEZONE && !isValidTimezone(process.env.WHOOP_TIMEZONE)) {
+    console.error(`[totem] ignoring invalid WHOOP_TIMEZONE=${JSON.stringify(process.env.WHOOP_TIMEZONE)}; using the Whoop profile or system timezone instead.`);
+  }
   // Generate + persist a stable per-install identifier before any request goes
   // out, so every data request carries the same `x-whoop-installation-identifier`
   // the iOS app sends. Persisted to the env file like the tokens.
@@ -75,7 +80,7 @@ async function main(): Promise<void> {
 
   // stdio (default — local Claude Desktop / Claude Code)
   const server = new McpServer({ name: "totem", version: "1.4.4" });
-  registerTools(server, client);
+  registerTools(server, client, new CatalogGate());
   await server.connect(new StdioServerTransport());
 }
 

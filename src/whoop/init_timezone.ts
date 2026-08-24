@@ -14,7 +14,7 @@
 // without restarting the server.
 
 import type { WhoopClient } from "./client.js";
-import { setProfileTimezone } from "../lib/timezone.js";
+import { isValidTimezone, setProfileTimezone } from "../lib/timezone.js";
 
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -25,7 +25,7 @@ async function fetchProfileTimezone(client: WhoopClient): Promise<string | null>
     const profile = (bootstrap as Record<string, unknown>).profile;
     if (!profile || typeof profile !== "object") return null;
     const offset = (profile as Record<string, unknown>).timezone_offset;
-    return typeof offset === "string" && offset.length > 0 ? offset : null;
+    return typeof offset === "string" && isValidTimezone(offset) ? offset : null;
   } catch {
     return null;
   }
@@ -42,7 +42,7 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null;
  * to spend API calls keeping the cache warm.
  */
 export function startTimezoneAutoDetect(client: WhoopClient): void {
-  if (process.env.WHOOP_TIMEZONE) return;
+  if (process.env.WHOOP_TIMEZONE && isValidTimezone(process.env.WHOOP_TIMEZONE)) return;
 
   if (refreshTimer) clearInterval(refreshTimer);
 

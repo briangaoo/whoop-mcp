@@ -71,6 +71,11 @@ export class TokenManager {
       console.error("[totem] Cognito rotated the refresh token — persisting the new one.");
     }
     this.expiresAt = next.expiresAt;
-    this.store.save({ accessToken: this.accessToken, refreshToken: this.refreshToken });
+    try {
+      this.store.save({ accessToken: this.accessToken, refreshToken: this.refreshToken });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error(`[totem] refreshed the Whoop access token but could not persist it: ${detail}. This process will keep using the fresh in-memory token.`);
+    }
   }
 }

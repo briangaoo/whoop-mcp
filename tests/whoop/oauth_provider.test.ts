@@ -6,8 +6,13 @@ const SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 const PASSWORD = "hunter2-correct-horse";
 const STATIC = SECRET;
 
-function provider(): WhoopOAuthProvider {
-  return new WhoopOAuthProvider({ signingSecret: SECRET, password: PASSWORD, staticToken: STATIC });
+function provider(resourceUrl?: string): WhoopOAuthProvider {
+  return new WhoopOAuthProvider({
+    signingSecret: SECRET,
+    password: PASSWORD,
+    staticToken: STATIC,
+    ...(resourceUrl === undefined ? {} : { resourceUrl }),
+  });
 }
 
 // PKCE S256: code_challenge = base64url(sha256(code_verifier))
@@ -146,5 +151,41 @@ describe("WhoopOAuthProvider — token verification", () => {
     expect(refreshed.access_token).toBeTruthy();
     const info = await p.verifyAccessToken(refreshed.access_token);
     expect(info.clientId).toBe(client.client_id);
+  });
+
+  it("accepts matching resource claims after URL normalization", async () => {
+    const p = provider("https://example.test/mcp");
+    const client = await registerClient(p, "https://claude.ai/cb");
+    const code = new URL(p.consent({
+      clientId: client.client_id, redirectUri: "https://claude.ai/cb",
+      codeChallenge: challengeFor("r".repeat(64)), state: "", scopes: "",
+      resource: "https://example.test/mcp/", password: PASSWORD,
+    })!).searchParams.get("code")!;
+    const tokens = await p.exchangeAuthorizationCode(client, code);
+    await expect(p.verifyAccessToken(tokens.access_token)).resolves.toMatchObject({ clientId: client.client_id });
+  });
+
+  it("rejects mismatched resource claims with InvalidTokenError (→ HTTP 401)", async () => {
+    const p = provider("https://example.test/mcp");
+    const client = await registerClient(p, "https://claude.ai/cb");
+    const code = new URL(p.consent({
+      clientId: client.client_id, redirectUri: "https://claude.ai/cb",
+      codeChallenge: challengeFor("m".repeat(64)), state: "", scopes: "",
+      resource: "https://other.test/mcp", password: PASSWORD,
+    })!).searchParams.get("code")!;
+    const tokens = await p.exchangeAuthorizationCode(client, code);
+    await expect(p.verifyAccessToken(tokens.access_token)).rejects.toMatchObject({ errorCode: "invalid_token" });
+  });
+
+  it("retains compatibility for access tokens without a resource claim", async () => {
+    const p = provider("https://example.test/mcp");
+    const client = await registerClient(p, "https://claude.ai/cb");
+    const code = new URL(p.consent({
+      clientId: client.client_id, redirectUri: "https://claude.ai/cb",
+      codeChallenge: challengeFor("l".repeat(64)), state: "", scopes: "",
+      resource: "", password: PASSWORD,
+    })!).searchParams.get("code")!;
+    const tokens = await p.exchangeAuthorizationCode(client, code);
+    await expect(p.verifyAccessToken(tokens.access_token)).resolves.toMatchObject({ clientId: client.client_id });
   });
 });

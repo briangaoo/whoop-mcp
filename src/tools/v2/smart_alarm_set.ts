@@ -5,23 +5,30 @@ import { SmartAlarmSetOut } from "../../schemas/smart_alarm.js";
 import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
 
+const CLOCK_TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
+const TIMEZONE_OFFSET_RE = /^[+-](?:[01]\d|2[0-3]):?[0-5]\d$/;
+
 const ScheduleShape = z.object({
   enabled: z.boolean(),
-  days_of_week: z.array(z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])),
-  latest_wake_time: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
+  days_of_week: z.array(z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])).min(1),
+  latest_wake_time: z.string().regex(CLOCK_TIME_RE),
   alarm_mode: z.enum(["IN_THE_GREEN", "EXACT_TIME_PEAK", "EXACT_TIME_OPTIMIZE_SLEEP"]),
   sleep_goal: z.string().default(""),
-  timezone_offset: z.string(),
+  timezone_offset: z.string().regex(TIMEZONE_OFFSET_RE),
+}).superRefine((schedule, ctx) => {
+  if (new Set(schedule.days_of_week).size !== schedule.days_of_week.length) {
+    ctx.addIssue({ code: "custom", path: ["days_of_week"], message: "days_of_week must not contain duplicates" });
+  }
 });
 
 const PreferencesShape = z.object({
-  lower_time_bound: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
-  upper_time_bound: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
+  lower_time_bound: z.string().regex(CLOCK_TIME_RE),
+  upper_time_bound: z.string().regex(CLOCK_TIME_RE),
   goal: z.enum(["EXACT_TIME_PEAK", "EXACT_TIME_OPTIMIZE_SLEEP", "IN_THE_GREEN"]),
   enabled: z.boolean(),
   schedule_enabled: z.boolean(),
-  timezone_offset: z.string(),
-  weekly_plan_goal: z.number().int().default(0),
+  timezone_offset: z.string().regex(TIMEZONE_OFFSET_RE),
+  weekly_plan_goal: z.number().int().min(0).default(0),
 });
 
 export function registerSmartAlarmSet(server: McpServer, client: WhoopClient): void {

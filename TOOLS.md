@@ -161,7 +161,7 @@ Create a generic activity (manual entry — for when you did something without w
 - **Output (confirm=false):** `{preview: true, will_execute: {...}, set_confirm_true_to_run: true}`
 - **Output (confirm=true):** `{created: true, activity_id, cycle_id, start, end, sport_id}`
 - **Gate:** rejects until `whoop_sports_catalog` has been called once in the session (token-saving lazy-load — see [Bundled catalogs](#bundled-catalogs)). The tool also rejects unknown `sport_id` values before hitting the API.
-- **Caveat:** Whoop rejects activities with < 1 minute duration (422). Common `sport_id` values verified live: `0=Running, 1=Cycling, 17=Basketball, 33=Swimming, 45=Weightlifting, 48=Functional Fitness, 52=Hiking, 63=Walking, 123=Strength Trainer, -1=Activity` (generic). Use `whoop_sports_catalog` to look up the rest of the 203.
+- **Validation:** the MCP rejects windows shorter than 1 minute or whose end is not after the start before previewing or calling Whoop. Common `sport_id` values verified live: `0=Running, 1=Cycling, 17=Basketball, 33=Swimming, 45=Weightlifting, 48=Functional Fitness, 52=Hiking, 63=Walking, 123=Strength Trainer, -1=Activity` (generic). Use `whoop_sports_catalog` to look up the rest of the 203.
 
 #### `whoop_activity_delete` ⚠️ WRITE (DESTRUCTIVE)
 Delete a workout / activity. Cannot be undone — the activity is removed from Whoop's system.
@@ -235,7 +235,7 @@ Log a finished strength workout. Builds Whoop's full nested `workout_groups → 
 - **Input:** `{name?: string, start?: string, end?: string, exercises: [{exercise_id, sets: [{reps, weight?, time_seconds?, strap_location?}]}], confirm?: boolean}`
 - **Source:** `POST /weightlifting-service/v2/weightlifting-workout/activity`
 - **Output:** `{logged: true, activity_id, exercise_count, set_count, total_volume_kg}` (or preview)
-- **Quirks:** Whoop's POST validates `exercise_details.created_at` and `exercise_details.updated_at` as non-empty ISO timestamps. The MCP populates them automatically. Overlapping time windows return 409. Default duration is 30 minutes ending now if `start`/`end` not passed.
+- **Validation + quirks:** The end must be after the start. Whoop's POST validates `exercise_details.created_at` and `exercise_details.updated_at` as non-empty ISO timestamps; the MCP populates them automatically. Overlapping time windows return 409. Default duration is 30 minutes ending now if `start`/`end` is not passed.
 
 #### `whoop_lift_template_save` ⚠️ WRITE (gated by `whoop_lift_catalog`)
 Create or save-as a workout template (e.g. "Push Day", "Heavy Legs").
@@ -363,6 +363,7 @@ Update one schedule, the global preferences, or the master enable/disable.
   - `master_enable` → `PUT /smart-alarm-service/v1/alarm-schedule/enable`
   - `master_disable` → `PUT /smart-alarm-service/v1/alarm-schedule/disable`
 - **Output:** `{updated: true, mode}` (or preview)
+- **Validation:** schedule days must be non-empty and unique; clock fields and timezone offsets are checked before preview or mutation.
 - **To change the wake time, use `mode=schedule`** (`schedule_id` + `latest_wake_time`) — that's the setting that actually controls when the alarm fires. `mode=preferences` sets the global goal + enable flags, but its `lower/upper_time_bound` are ignored by the server whenever an explicit schedule exists (the PUT returns 200 but the bounds don't change). Read `whoop_smart_alarm` first for the `schedule_id` + current values; schedule/preferences **replace**, they don't merge.
 
 ### Social (2)
@@ -402,6 +403,7 @@ Set max HR (auto-computes 5 zones) OR set custom 5-zone ranges.
   - max_hr → `POST /hr-zones-service/v1/maxhr`
   - custom → `POST /hr-zones-service/v1/bff/custom`
 - **Output:** `{updated: true, mode}` (or preview)
+- **Validation:** max HR must be a positive integer; custom zones must contain `ZONE_1` through `ZONE_5` exactly once, in order, with increasing non-overlapping ranges.
 
 #### `whoop_profile_update` ⚠️ WRITE
 Update profile: name, email, birthday, gender, weight, height, country/state, city.
@@ -409,6 +411,7 @@ Update profile: name, email, birthday, gender, weight, height, country/state, ci
 - **Input:** `{first_name?, last_name?, email?, birthday?, gender?: "MALE"|"FEMALE"|"NON_BINARY", physiological_baseline?: "MALE"|"FEMALE", weight_kg?, height_m?, city?, state?, country?, unit_system?: "imperial"|"metric", confirm?}`
 - **Source:** `PUT /profile-service/v1/profile`
 - **Output:** `{updated: true, fields_updated: string[]}` (or preview)
+- **Validation:** at least one field is required; email, birthday, and country formats are checked, country codes are normalized to uppercase, and US profiles require a state.
 - **Live-verified quirks:** Whoop's PUT is NOT a partial update — sending too few fields returns 422. Birthday accepts either `YYYY-MM-DD` or ISO datetime (the MCP auto-trims the time component). Gender enums must be UPPERCASE; `UNSPECIFIED`/`OTHER`/`PREFER_NOT_TO_SAY` are rejected (only `MALE`/`FEMALE`/`NON_BINARY` work). If `country=US`, the API requires `state` to be set too — otherwise 400 `"AdminDivision (state) must be set for US"`.
 
 #### `whoop_hidden_metric` ⚠️ WRITE
@@ -434,4 +437,3 @@ Search the bundled catalog of 311 deduped endpoint paths.
 - **Input:** `{filter?: string, method?: "GET"|"POST"|"PUT"|"DELETE", limit?: number}`
 - **Source:** Bundled `src/data/endpoints.ts`
 - **Output:** `{total_in_catalog, matched, truncated, endpoints: string[]}` (lines like `GET 200 /home-service/v1/home`)
-
