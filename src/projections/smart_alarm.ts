@@ -2,7 +2,8 @@ import type { SmartAlarmOutT } from "../schemas/smart_alarm.js";
 import { isObject, asArray, asBool, asNumber, asString } from "../lib/walk.js";
 
 // Schedule list from /smart-alarm-bff/v1/schedule/all:
-//   alarm_schedule_list[], schedule_enabled
+//   alarm_schedule_list[] with alarm_on + scheduled_days, schedule_enabled.
+// Older responses used enabled + day_of_week_list instead.
 //
 // Preferences from /smart-alarm-service/v1/smartalarm/preferences (documented):
 //   lower_time_bound, recovery_score_goal, sleep_score_goal, weekly_plan_goal,
@@ -32,18 +33,21 @@ export function projectSmartAlarm(input: ProjectSmartAlarmInput): SmartAlarmOutT
   const list = asArray(sched.alarm_schedule_list)
     .map((s) => {
       if (!isObject(s)) return null;
-      const days = asArray(s.day_of_week_list)
+      const rawDays = asArray(s.day_of_week_list);
+      const days = (rawDays.length > 0 ? rawDays : asArray(s.scheduled_days))
         .filter((d): d is string => typeof d === "string")
         .filter((d): d is Day => (VALID_DAYS as readonly string[]).includes(d));
       const mode = asString(s.alarm_mode);
       return {
         schedule_id: asString(s.schedule_id ?? s.id) ?? "",
-        enabled: asBool(s.enabled) ?? false,
+        enabled: asBool(s.enabled) ?? asBool(s.alarm_on) ?? false,
         days_of_week: days,
         latest_wake_time: asString(s.latest_wake_time) ?? "",
         alarm_mode: ((VALID_MODES as readonly string[]).includes(mode ?? "") ? mode : "IN_THE_GREEN") as Mode,
-        sleep_goal: asString(s.sleep_goal),
-        timezone_offset: asString(s.time_zone_offset) ?? "",
+        // The schedule-list response omits these. An empty sleep_goal is the
+        // valid write value for IN_THE_GREEN; the account offset comes from prefs.
+        sleep_goal: asString(s.sleep_goal) ?? "",
+        timezone_offset: asString(s.time_zone_offset) ?? asString(prefs.time_zone_offset) ?? "",
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
