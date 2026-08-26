@@ -4,9 +4,9 @@ import type { WhoopClient } from "../../whoop/client.js";
 import { SymptomLogOut } from "../../schemas/womens_health.js";
 import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
 
-export function registerSymptomLog(server: McpServer, client: WhoopClient): void {
+export function registerSymptomLog(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_symptom_log",
     "WRITE: log women's-health symptoms for a date via menstruation (none, spotting, light_flow, medium_flow, heavy_flow), cervical_mucus (5 discharge types — see the param enum; omit to clear), and/or symptoms[] referencing behavior_tracker_ids. Women's-health tracking must be set up, and any symptoms[] require calling whoop_journal_catalog first.",
@@ -36,7 +36,7 @@ export function registerSymptomLog(server: McpServer, client: WhoopClient): void
       // menstruation/cervical_mucus-only call can never trip on undefined.
       const syms = symptoms ?? [];
       if (syms.length > 0) {
-        const gate = gateError("behaviors", "whoop_journal_catalog");
+        const gate = catalogGate.error("behaviors", "whoop_journal_catalog");
         if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
       }
       const path = "/womens-health-service/v1/symptom-insights/log/symptoms";

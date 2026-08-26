@@ -6,22 +6,24 @@ import { projectLiftProgression } from "../../projections/lift_progression.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
-import { gateError } from "../../whoop/session_state.js";
+import type { CatalogGate } from "../../whoop/session_state.js";
+import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 
-export function registerLiftProgression(server: McpServer, client: WhoopClient): void {
+export function registerLiftProgression(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
   server.tool(
     "whoop_lift_progression",
-    "Multi-window volume trend for a single exercise: 30-day, 6-month, year segments with avg volume + change % + per-session points. Requires calling whoop_lift_catalog first.",
+    "Multi-window volume trend for a single exercise: 30-day, 6-month, year segments with avg volume + change % + per-session points. Pass an ID or exact official exercise name.",
     {
-      exercise_id: z.string().describe("From whoop_lift_catalog."),
+      exercise_id: z.string().optional().describe("Exercise code or UUID."),
+      exercise: z.string().optional().describe("Exact official exercise name; avoids a separate catalog lookup."),
       end_date: z.iso.date().optional(),
     },
-    async ({ exercise_id, end_date }) => {
-      const gate = gateError("exercises", "whoop_lift_catalog");
-      if (gate) return { content: [{ type: "text", text: JSON.stringify(gate, null, 2) }], isError: true };
+    async ({ exercise_id, exercise, end_date }) => {
+      const resolvedId = exercise_id ?? (exercise ? resolveOfficialExercise(exercise) : null);
+      if (!resolvedId) return { content: [{ type: "text", text: jsonOut({ error: "Provide an exercise_id or exact official exercise name." }) }], isError: true };
       const d = end_date ?? todayIso();
-      const raw = await client.get(`/progression-service/v3/exercise/${exercise_id}`, { endDate: d });
-      const projected = projectLiftProgression(raw, exercise_id, d);
+      const raw = await client.get(`/progression-service/v3/exercise/${resolvedId}`, { endDate: d });
+      const projected = projectLiftProgression(raw, resolvedId, d);
       try {
         const out = LiftProgressionOut.parse(projected);
         return { content: [{ type: "text", text: jsonOut(out) }] };

@@ -4,24 +4,38 @@ import type { WhoopClient } from "../../whoop/client.js";
 import { SmartAlarmSetOut } from "../../schemas/smart_alarm.js";
 import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
+import { normalizeClockTime } from "../../lib/clock.js";
+import { projectSmartAlarm } from "../../projections/smart_alarm.js";
+
+const TIMEZONE_OFFSET_RE = /^[+-](?:[01]\d|2[0-3]):?[0-5]\d$/;
+const ClockTime = z.string().trim().transform((value, ctx) => {
+  const normalized = normalizeClockTime(value);
+  if (normalized) return normalized;
+  ctx.addIssue({ code: "custom", message: "Use a clock time such as 07:30, 07:30:00, or 7:30 AM." });
+  return z.NEVER;
+});
 
 const ScheduleShape = z.object({
   enabled: z.boolean(),
-  days_of_week: z.array(z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])),
-  latest_wake_time: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
+  days_of_week: z.array(z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])).min(1),
+  latest_wake_time: ClockTime,
   alarm_mode: z.enum(["IN_THE_GREEN", "EXACT_TIME_PEAK", "EXACT_TIME_OPTIMIZE_SLEEP"]),
   sleep_goal: z.string().default(""),
-  timezone_offset: z.string(),
+  timezone_offset: z.string().regex(TIMEZONE_OFFSET_RE),
+}).superRefine((schedule, ctx) => {
+  if (new Set(schedule.days_of_week).size !== schedule.days_of_week.length) {
+    ctx.addIssue({ code: "custom", path: ["days_of_week"], message: "days_of_week must not contain duplicates" });
+  }
 });
 
 const PreferencesShape = z.object({
-  lower_time_bound: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
-  upper_time_bound: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
+  lower_time_bound: ClockTime,
+  upper_time_bound: ClockTime,
   goal: z.enum(["EXACT_TIME_PEAK", "EXACT_TIME_OPTIMIZE_SLEEP", "IN_THE_GREEN"]),
   enabled: z.boolean(),
   schedule_enabled: z.boolean(),
-  timezone_offset: z.string(),
-  weekly_plan_goal: z.number().int().default(0),
+  timezone_offset: z.string().regex(TIMEZONE_OFFSET_RE),
+  weekly_plan_goal: z.number().int().min(0).default(0),
 });
 
 export function registerSmartAlarmSet(server: McpServer, client: WhoopClient): void {
@@ -95,8 +109,52 @@ export function registerSmartAlarmSet(server: McpServer, client: WhoopClient): v
           ],
         };
       }
+      if (mode === "schedule" && schedule_id && schedule) {
+        const [schedules, currentPreferences] = await Promise.all([
+          client.get("/smart-alarm-bff/v1/schedule/all"),
+          client.get("/smart-alarm-service/v1/smartalarm/preferences").catch(() => null),
+        ]);
+        const current = projectSmartAlarm({ schedules, preferences: currentPreferences }).schedules
+          .find((entry) => entry.schedule_id === schedule_id);
+        const noChange = Boolean(current
+          && current.enabled === schedule.enabled
+          && current.latest_wake_time === schedule.latest_wake_time
+          && current.alarm_mode === schedule.alarm_mode
+          && current.sleep_goal === schedule.sleep_goal
+          && current.timezone_offset === schedule.timezone_offset
+          && current.days_of_week.length === schedule.days_of_week.length
+          && current.days_of_week.every((day, index) => day === schedule.days_of_week[index]));
+        if (noChange) {
+          const out = SmartAlarmSetOut.parse({ updated: false, no_change: true, mode });
+          return { content: [{ type: "text", text: jsonOut(out) }] };
+        }
+      }
+      if (mode === "preferences" && preferences) {
+        const raw = await client.get("/smart-alarm-service/v1/smartalarm/preferences");
+        const current = raw && typeof raw === "object" ? raw as Record<string, unknown> : null;
+        const noChange = Boolean(current
+          && normalizeClockTime(typeof current.lower_time_bound === "string" ? current.lower_time_bound : "") === preferences.lower_time_bound
+          && normalizeClockTime(typeof current.upper_time_bound === "string" ? current.upper_time_bound : "") === preferences.upper_time_bound
+          && current.goal === preferences.goal
+          && current.enabled === preferences.enabled
+          && current.schedule_enabled === preferences.schedule_enabled
+          && current.time_zone_offset === preferences.timezone_offset
+          && current.weekly_plan_goal === preferences.weekly_plan_goal);
+        if (noChange) {
+          const out = SmartAlarmSetOut.parse({ updated: false, no_change: true, mode });
+          return { content: [{ type: "text", text: jsonOut(out) }] };
+        }
+      }
+      if (mode === "master_enable" || mode === "master_disable") {
+        const schedules = await client.get("/smart-alarm-bff/v1/schedule/all");
+        const enabled = projectSmartAlarm({ schedules, preferences: null }).enabled;
+        if (enabled === (mode === "master_enable")) {
+          const out = SmartAlarmSetOut.parse({ updated: false, no_change: true, mode });
+          return { content: [{ type: "text", text: jsonOut(out) }] };
+        }
+      }
       await client.put(path, body);
-      const out = SmartAlarmSetOut.parse({ updated: true as const, mode });
+      const out = SmartAlarmSetOut.parse({ updated: true, no_change: false, mode });
       return { content: [{ type: "text", text: jsonOut(out) }] };
     },
   );

@@ -14,17 +14,20 @@ export const HrZonesOut = z.object({
 export type HrZonesOutT = z.infer<typeof HrZonesOut>;
 
 export const HrZonesSetOut = withPreview(z.object({
-  updated: z.literal(true),
+  updated: z.boolean(),
+  no_change: z.boolean(),
   mode: z.enum(["max_hr", "custom"]),
 }));
 
 export const ProfileUpdateOut = withPreview(z.object({
-  updated: z.literal(true),
+  updated: z.boolean(),
+  no_change: z.boolean(),
   fields_updated: z.array(z.string()),
 }));
 
 export const HiddenMetricOut = withPreview(z.object({
-  updated: z.literal(true),
+  updated: z.boolean(),
+  no_change: z.boolean(),
   metric: z.enum(["BODY_COMP", "HEALTHSPAN"]),
   is_hidden: z.boolean(),
 }));

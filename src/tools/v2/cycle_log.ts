@@ -25,6 +25,12 @@ export function registerCycleLog(server: McpServer, client: WhoopClient): void {
           isError: true,
         };
       }
+      if (period_flow !== undefined && period !== true) {
+        return {
+          content: [{ type: "text", text: jsonOut({ error: "period_flow can only be supplied when period=true." }) }],
+          isError: true,
+        };
+      }
       const parts = date.split("-").map(Number);
       const y = parts[0] ?? 1970;
       const m = parts[1] ?? 1;
