@@ -9,6 +9,7 @@
 //   3. Get AccessToken + RefreshToken from AuthenticationResult
 //   4. To refresh: InitiateAuth with REFRESH_TOKEN_AUTH (no MFA needed)
 import { randomUUID } from "node:crypto";
+import { REQUEST_TIMEOUT_MS } from "./constants.js";
 
 const ENDPOINT = "https://api.prod.whoop.com/auth-service/v3/whoop/";
 const USER_AGENT =
@@ -53,20 +54,33 @@ async function callCognito(
   target: "InitiateAuth" | "RespondToAuthChallenge",
   body: object,
 ): Promise<CognitoResponse> {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-amz-json-1.1",
-      "x-amz-target": `AWSCognitoIdentityProviderService.${target}`,
-      "amz-sdk-request": "attempt=1; max=1",
-      "amz-sdk-invocation-id": randomUUID(),
-      "user-agent": USER_AGENT,
-      accept: "*/*",
-      "accept-encoding": "gzip, deflate, br",
-      "accept-language": "en-US,en;q=0.9",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": `AWSCognitoIdentityProviderService.${target}`,
+        "amz-sdk-request": "attempt=1; max=1",
+        "amz-sdk-invocation-id": randomUUID(),
+        "user-agent": USER_AGENT,
+        accept: "*/*",
+        "accept-encoding": "gzip, deflate, br",
+        "accept-language": "en-US,en;q=0.9",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Cognito ${target} timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   const text = await response.text();
   if (!response.ok) {
     let detail = text.slice(0, 200);
