@@ -16,10 +16,15 @@ export function registerCalendar(server: McpServer, client: WhoopClient): void {
     },
     async ({ date }) => {
       const d = date ?? todayIso();
-      const [overview, recovery] = await Promise.all([
-        client.get("/home-service/v1/calendar/overview", { date: d }),
-        client.get("/home-service/v1/calendar/recovery", { date: d }).catch(() => null),
-      ]);
+      // Both endpoints contain the same state grid. Prefer recovery and only
+      // pay for overview when that endpoint is unavailable.
+      let recovery: unknown = null;
+      let overview: unknown = null;
+      try {
+        recovery = await client.get("/home-service/v1/calendar/recovery", { date: d });
+      } catch {
+        overview = await client.get("/home-service/v1/calendar/overview", { date: d });
+      }
       const projected = projectCalendar({ overview, recovery, date: d });
       try {
         const out = CalendarOut.parse(projected);
