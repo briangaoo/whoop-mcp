@@ -30,7 +30,7 @@
   <sub>▶ 2-min demo — the full <code>totem cloud</code> flow: install → Whoop login → Fly deploy → Claude connector → first query.</sub>
 </p>
 
-49 tools, structured zod-validated outputs, bundled catalogs (372 exercises, 308 behaviors, 203 sports, 311 endpoints), write-safety harness, automatic Cognito token refresh, session-scoped catalog gate. TypeScript 6, Node 24, 235 tests.
+49 tools, structured zod-validated outputs, bundled catalogs (372 exercises, 308 behaviors, 203 sports, 311 endpoints), write-safety harness, automatic Cognito token refresh, and a comprehensive TypeScript/Vitest regression suite.
 
 > **Totem is becoming a universal wearables bridge.** Whoop is the first adapter — every metric, fully wired. Fitbit, Apple Watch, and Garmin are in progress ([contributors welcome](CONTRIBUTING.md)). The MCP + projection layer is device-agnostic; an adapter just maps its source into the same shared schemas, so everything below applies to whatever you wear.
 
@@ -194,29 +194,29 @@ When Whoop changes a response shape, the projection emits unexpected data, zod's
 
 ---
 
-## The 49 tools
+## The 55 tools
 
-Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked 🔒 are gated — the catalog tool in the same group must be called once per session before they'll run.
+Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked 🔒 need a catalog lookup only when you use an ID rather than the tool's documented exact-name form.
 
 | Group | Tools |
 |---|---|
-| **Snapshots & profile** (4) | `whoop_today` · `whoop_day` · `whoop_profile` · `whoop_calendar` |
+| **Snapshots & profile** (5) | `whoop_today` · `whoop_day` · `whoop_daily_brief` · `whoop_profile` · `whoop_calendar` |
 | **Deep dives** (3) | `whoop_recovery` · `whoop_sleep` · `whoop_strain` |
-| **Trends** (2) | `whoop_trend` · `whoop_compare` |
+| **Trends & planning** (4) | `whoop_trend` · `whoop_trend_pack` · `whoop_weekly_plan` · `whoop_compare` |
 | **Stress + sleep coach** (2) | `whoop_stress` · `whoop_sleep_need` |
-| **Live** (3) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` |
-| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️🔒 · `whoop_activity_delete` ⚠️ |
-| **Strength reads** (6) | `whoop_lift_prs` · `whoop_lift_exercise` 🔒 · `whoop_lift_progression` 🔒 · `whoop_lift_history` · `whoop_lift_library` · `whoop_lift_catalog` |
-| **Strength writes** (3) | `whoop_lift_log` ⚠️🔒 · `whoop_lift_template_save` ⚠️🔒 · `whoop_lift_custom_exercise` ⚠️🔒 |
-| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️🔒 · `whoop_journal_autopop` ⚠️ |
+| **Live** (4) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` · `whoop_activity_now` |
+| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️ · `whoop_activity_delete` ⚠️ |
+| **Strength reads** (7) | `whoop_lift_prs` · `whoop_lift_exercise` · `whoop_lift_progression` · `whoop_lift_history` · `whoop_lift_overview` · `whoop_lift_library` · `whoop_lift_catalog` |
+| **Strength writes** (3) | `whoop_lift_log` ⚠️ · `whoop_lift_template_save` ⚠️ · `whoop_lift_custom_exercise` ⚠️🔒 |
+| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️ · `whoop_journal_autopop` ⚠️ |
 | **Women's health** (3) | `whoop_cycle` · `whoop_cycle_log` ⚠️ · `whoop_symptom_log` ⚠️🔒 |
 | **Coach + performance** (2) | `whoop_coach_ask` ⚠️ · `whoop_performance_assessment` |
 | **Smart alarm** (2) | `whoop_smart_alarm` · `whoop_smart_alarm_set` ⚠️ |
 | **Social** (2) | `whoop_leaderboard` · `whoop_communities` |
-| **Settings** (4) | `whoop_hr_zones` · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
+| **Settings** (5) | `whoop_preferences` · `whoop_hr_zones` · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
 | **Escape hatch** (2) | `whoop_raw` · `whoop_endpoints` |
 
-**Total: 49** (32 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
+**Total: 55** (38 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
 
 ---
 
@@ -462,7 +462,7 @@ Versions are sourced from the places that already host them — git tags + GitHu
 - **Credentials live in `.env` on your machine.** Email, password, access token, refresh token — never leave your filesystem. Claude can't read them (it doesn't have filesystem access unless you wire in a filesystem MCP).
 - **The only outbound traffic is HTTPS to `api.prod.whoop.com`.** No telemetry, no analytics, no third-party servers. The MCP is open source — every line that touches your data is auditable.
 - **Write safety**: every write tool defaults to `confirm: false`. The preview shape includes what would be sent. You see it in chat before any mutation. To go further, remove specific writes from `src/tools/register.ts` or use Claude Desktop's "always require approval" setting.
-- **Hardened in 1.2.3**: token files are written `0600`, your account password is wiped from `.env` after login, OAuth tokens are audience-bound and signed with a key derived from `MCP_AUTH_TOKEN`, the HTTP server sends anti-clickjacking + CSP headers, the connector-password gate has a global brute-force ceiling, and deploy secrets are pushed over stdin (not argv). Full detail in [`SECURITY.md`](SECURITY.md) and [`CHANGELOG.md`](CHANGELOG.md).
+- **Hardened authentication**: token files are written `0600`, your account password is wiped from `.env` after login, OAuth tokens are audience-bound and signed with a key derived from `MCP_AUTH_TOKEN`, the HTML consent page sends anti-clickjacking headers, the connector-password gate has a global brute-force ceiling, and deploy secrets are pushed over stdin (not argv). Full detail in [`SECURITY.md`](SECURITY.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 

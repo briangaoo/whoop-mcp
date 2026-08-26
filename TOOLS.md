@@ -1,11 +1,11 @@
-# The 49 tools
+# The 55 tools
 
-> Full reference for every tool exposed by [totem](README.md). Each entry has the input shape, source endpoint(s), and output shape. Catalog tools (`whoop_sports_catalog`, `whoop_lift_catalog`, `whoop_journal_catalog`) unlock their gated counterparts — see [README → Bundled catalogs](README.md#bundled-catalogs).
+> Full reference for every tool exposed by [totem](README.md). Each entry has the input shape, source endpoint(s), and output shape. Catalog tools (`whoop_sports_catalog`, `whoop_lift_catalog`, `whoop_journal_catalog`) remain useful for browsing; common writes also accept documented exact names to avoid a catalog round trip.
 
 
 Below is every tool with its signature, source endpoints, and notes. Inputs are the zod schema; outputs are described as TypeScript-ish for brevity (full schemas in `src/schemas/`).
 
-### Snapshots & profile (4)
+### Snapshots & profile (5)
 
 #### `whoop_today`
 Composite snapshot of today: recovery score + state, sleep performance + stages, day strain so far, current activity state, workouts count.
@@ -20,6 +20,13 @@ Same composite as `whoop_today` but for any past date. Drops the live state (not
 - **Input:** `{date: string}` (required, YYYY-MM-DD)
 - **Source:** Same as `whoop_today` minus the user-state fetch
 - **Output:** Same as `whoop_today`, with `current_state.*` set to null
+
+#### `whoop_daily_brief`
+Compact, model-oriented daily context. Fetches only selected sections and omits heavy timelines.
+
+- **Input:** `{date?: string, sections?: ["recovery"|"sleep"|"strain"|"sleep_plan"|"activity"], detail?: "compact"|"standard"}`
+- **Source:** Shared home/sleep/recovery sources for core sections, plus strain and sleep-need only when selected.
+- **Output:** `{date, recovery?, sleep?, strain?, sleep_plan?, activity?}`
 
 #### `whoop_profile`
 Identity + body measurements + privacy state.
@@ -51,7 +58,7 @@ Recovery score + HRV (with baseline) + RHR (with baseline) + respiratory rate + 
 Sleep duration, time in bed, efficiency, performance, consistency, all 4 stages (REM / LIGHT / SWS / AWAKE) with ms + percent, the full hypnogram (per-stage timeline), in-sleep heart rate (avg/min), disturbances.
 
 - **Input:** `{date?: string}`
-- **Source:** `GET /home-service/v1/deep-dive/sleep/last-night?date=`
+- **Source:** `GET /home-service/v1/deep-dive/sleep/last-night?date=` plus the lightweight `GET /developer/v2/activity/sleep?limit=5` scored record, which supplies the authoritative `performance_pct`.
 - **Output:** `{date, started_at, ended_at, total_sleep_ms, time_in_bed_ms, efficiency_pct, performance_pct, consistency_pct, debt_ms, latency_ms, stages: {rem_ms, rem_pct, light_ms, light_pct, sws_ms, sws_pct, wake_ms, wake_pct}, hypnogram: [{started_at, ended_at, stage}], disturbances, sleep_hr: {avg_bpm, min_bpm}, sleep_hrv_ms, respiratory_rate}`
 
 Note: the underlying endpoint is 848 KB. The projection extracts ~500 chars.
@@ -64,7 +71,7 @@ Change a sleep's start and/or end time. Resolves the sleep's `activity_id` from 
 - **Input:** `{date?: string, start?: string (ISO+offset), end?: string (ISO+offset), resolve_overlaps?: boolean, confirm?: boolean}` (at least one of `start`/`end` required)
 - **Source:** `GET /home-service/v1/deep-dive/sleep/last-night?date=` to resolve `activity_id` + current window, then `PUT /core-details-bff/v2/sleep-details/{activityId}` with body `{start_time, end_time, resolve_overlaps?}`
 - **Output (confirm=false):** `{preview: true, will_execute: {...}, set_confirm_true_to_run: true}`
-- **Output (confirm=true):** `{edited: true, activity_id, start, end}`
+- **Output (confirm=true):** `{edited: true, no_change: false, activity_id, start, end}`, or `{edited: false, no_change: true, ...}` when the requested window already matches.
 
 #### `whoop_strain`
 Day strain + HR zone time buckets + steps + strength activity time + workouts count.
@@ -77,7 +84,7 @@ Day strain + HR zone time buckets + steps + strength activity time + workouts co
 - **Removed fields:** `calories`, `avg_hr_bpm`, `max_hr_bpm`, and per-zone (zone_0/2/3/5) granularity are no longer in this deep-dive endpoint. They live per-workout — use `whoop_workout` for HR zone breakdown of a specific activity. The schema fields are kept (returning null) so the shape stays compatible if Whoop adds them back.
 - **HR zones:** Whoop now reports only `HR_ZONES_1_3` (low+mid intensity) and `HR_ZONES_4_5` (high intensity) at the day level. We store the 1-3 aggregate in `zone_1_ms` and the 4-5 aggregate in `zone_4_ms`; zones 0/2/3/5 stay null.
 
-### Trends (2)
+### Trends & planning (4)
 
 #### `whoop_trend`
 Trend data for any of 25 metrics across up to four windows (week / month / six_month / year). Most metrics return 3 segments; a few (e.g. VO2_MAX) return 2.
@@ -95,6 +102,20 @@ Side-by-side comparison of two date windows across recovery / sleep performance 
 - **Source:** 2× `whoop_trend` for each metric in the array
 - **Output:** `{window, a: {start_date, end_date}, b: {start_date, end_date}, metrics: [{metric, a_avg, b_avg, delta_abs, delta_pct, unit}]}`
 
+#### `whoop_trend_pack`
+Compact aggregate trend summaries for up to five requested metrics; per-day points are opt-in.
+
+- **Input:** `{metrics: string[], end_date?: string, window?: "week"|"month"|"six_month"|"year", include_points?: boolean}`
+- **Source:** One progression endpoint request per requested metric.
+- **Output:** `{end_date, window, trends: [{metric, avg, min, max, delta_pct, unit}]}` (plus points when requested)
+
+#### `whoop_weekly_plan`
+Compact weekly-plan progress across your active goals.
+
+- **Input:** `{date?: string}`
+- **Source:** `GET /progression-service/v2/weekly-plan/home-tile/{date}`
+- **Output:** `{date, title, days_left, accomplished_pct, goals: [{id, title, progress: {display, current, target, percent}|null}]}`
+
 ### Stress + sleep coach (2)
 
 #### `whoop_stress`
@@ -111,14 +132,14 @@ Recommended bedtime + sleep need breakdown (baseline + debt + strain + nap credi
 - **Source:** `GET /coaching-service/v2/sleepneed`
 - **Output:** `{recommended_time_in_bed, recommended_time_in_bed_minutes, need_breakdown: {baseline_minutes, debt_minutes, strain_minutes, nap_credit_minutes}, next_schedule_day, smart_alarm_eligible, schedule_state}`
 
-### Live (3)
+### Live (4)
 
 #### `whoop_live_hr`
 Current heart rate from the strap (if recording).
 
 - **Input:** `{}`
 - **Source:** `GET /health-tab-bff/v1/health-tab` (extracts the LIVE_HR section)
-- **Output:** `{current_bpm, hr_zone, is_recording, last_updated_at, show_live_hr}`
+- **Output:** `{current_bpm, hr_zone, is_recording, last_updated_at, show_live_hr, freshness}`
 - **Caveat:** `is_recording` is false when the strap isn't streaming. `current_bpm` may be null or stale.
 
 #### `whoop_live_state`
@@ -126,14 +147,21 @@ What you're currently doing — workout, sleep, idle, recovery.
 
 - **Input:** `{}`
 - **Source:** `GET /activities-service/v1/user-state`
-- **Output:** `{state: "workout"|"sleep"|"idle"|"recovery"|"unknown", sport_name, sport_id, activity_id, started_at, duration_so_far_ms, tracked_sleep, latest_metrics_at}`
+- **Output:** `{state: "workout"|"sleep"|"idle"|"recovery"|"unknown", sport_name, sport_id, activity_id, started_at, duration_so_far_ms, tracked_sleep, latest_metrics_at, freshness}`
 
 #### `whoop_live_stress`
 Current stress level (cheaper than `whoop_stress` if you don't need the timeline).
 
 - **Input:** `{}`
 - **Source:** `GET /health-service/v2/stress-bff/{today}` (last point only)
-- **Output:** `{current_level, baseline_level, calibration_state, last_updated_at}`
+- **Output:** `{current_level, baseline_level, calibration_state, last_updated_at, freshness}`
+
+#### `whoop_activity_now`
+Fresh composite for current activity state, live heart rate, and/or stress. Completed live values are never cached.
+
+- **Input:** `{include?: ["state"|"heart_rate"|"stress"]}`
+- **Source:** Only the selected live endpoint(s), in parallel.
+- **Output:** `{state?, heart_rate?, stress?}`; every returned live field has its own `freshness: {fetched_at, source_updated_at, source_age_ms, completed_cache: "bypassed"}`. These values are always fetched fresh; `source_age_ms` reports how old WHOOP's own measurement is, rather than the age of an MCP cache entry.
 
 ### Activities (2 read + 2 write + 1 catalog)
 
@@ -153,15 +181,16 @@ Full detail of one activity: HR curve, HR zone durations, calories, distance. St
 - **`hr_curve`:** reconstructed from the graph points — bpm from each point's `value_display`, timestamps from `position_x` × the workout window — then evenly downsampled to ≤120 points.
 - **Caveat:** a just-created/logged activity stays `score_state: "pending"` until Whoop scores it, and this endpoint returns 400 (`"Cannot view details for a pending activity"`) until then — so don't read details of a workout you just logged for a while.
 
-#### `whoop_activity_create` ⚠️ WRITE (gated by `whoop_sports_catalog`)
+#### `whoop_activity_create` ⚠️ WRITE
 Create a generic activity (manual entry — for when you did something without wearing the strap, or want to add a record after the fact).
 
-- **Input:** `{sport_id: number, start: string, end: string, gps_enabled?: boolean, confirm?: boolean}`
+- **Input:** `{sport_id?: number, sport?: string, start: string, end: string, gps_enabled?: boolean, confirm?: boolean}`
 - **Source:** `POST /core-details-bff/v0/create-activity`
 - **Output (confirm=false):** `{preview: true, will_execute: {...}, set_confirm_true_to_run: true}`
 - **Output (confirm=true):** `{created: true, activity_id, cycle_id, start, end, sport_id}`
-- **Gate:** rejects until `whoop_sports_catalog` has been called once in the session (token-saving lazy-load — see [Bundled catalogs](#bundled-catalogs)). The tool also rejects unknown `sport_id` values before hitting the API.
-- **Caveat:** Whoop rejects activities with < 1 minute duration (422). Common `sport_id` values verified live: `0=Running, 1=Cycling, 17=Basketball, 33=Swimming, 45=Weightlifting, 48=Functional Fitness, 52=Hiking, 63=Walking, 123=Strength Trainer, -1=Activity` (generic). Use `whoop_sports_catalog` to look up the rest of the 203.
+- **Validation:** resolves a supplied exact sport name locally, or validates a supplied `sport_id`, before hitting the API.
+- **Timestamp handling:** accepts any ISO timestamp with an offset and sends canonical UTC to WHOOP; the endpoint rejects offset-form timestamps.
+- **Validation:** the MCP rejects windows shorter than 1 minute or whose end is not after the start before previewing or calling Whoop. Common `sport_id` values verified live: `0=Running, 1=Cycling, 17=Basketball, 33=Swimming, 45=Weightlifting, 48=Functional Fitness, 52=Hiking, 63=Walking, 123=Strength Trainer, -1=Activity` (generic). Use `whoop_sports_catalog` to look up the rest of the 203.
 
 #### `whoop_activity_delete` ⚠️ WRITE (DESTRUCTIVE)
 Delete a workout / activity. Cannot be undone — the activity is removed from Whoop's system.
@@ -177,7 +206,7 @@ Local lookup over the bundled 203-sport catalog (numeric `sport_id` ↔ display 
 - **Source:** Bundled `src/data/sports.ts` (203-entry catalog generated from `/activities-service/v1/sports/history?countryCode=US`)
 - **Output:** `{total_in_catalog: 203, matched, truncated, sports: [{id, name}]}`
 
-### Strength reads (6)
+### Strength reads (7)
 
 #### `whoop_lift_prs`
 All Strength Trainer personal records across every exercise, with medals.
@@ -186,19 +215,17 @@ All Strength Trainer personal records across every exercise, with medals.
 - **Source:** `GET /weightlifting-service/v3/prs`
 - **Output:** `Array<{exercise_id, name, muscle_groups, equipment, pr_value, pr_units, pr_date, medal: "GOLD"|"SILVER"|"BRONZE"|null, custom_exercise}>`
 
-#### `whoop_lift_exercise` (gated by `whoop_lift_catalog`)
+#### `whoop_lift_exercise`
 Single exercise composite: metadata + recent sessions (every set with reps/weight/medal) + your PRs for that exercise.
 
-- **Input:** `{exercise_id: string}` (use `whoop_lift_catalog` to find IDs)
-- **Gate:** rejects until `whoop_lift_catalog` has been called once in the session.
+- **Input:** `{exercise_id?: string, exercise?: string}` (exact official exercise name or ID)
 - **Source (3 parallel):** `/v1/exercise/{id}`, `/v3/exercise/{id}/exercise_history`, `/v3/exercise/{id}/personal_records`
 - **Output:** `{exercise: {id, name, muscle_groups, equipment, movement_pattern, laterality, custom, volume_input_format, instructions, video_url}, recent_sessions: LiftSession[], personal_records: LiftSession[]}`
 
-#### `whoop_lift_progression` (gated by `whoop_lift_catalog`)
+#### `whoop_lift_progression`
 Volume trend for a single exercise across week / month / 6-month / year windows.
 
-- **Input:** `{exercise_id: string, end_date?: string}`
-- **Gate:** rejects until `whoop_lift_catalog` has been called once in the session.
+- **Input:** `{exercise_id?: string, exercise?: string, end_date?: string}`
 - **Source:** `GET /progression-service/v3/exercise/{id}?endDate=`
 - **Output:** `{exercise_id, end_date, segments: [{label, start_date, end_date, avg_volume, delta_pct, unit, points: [{date, volume, reps, top_weight}]}]}` (per-point `reps` and `top_weight` are currently always `null` — the progression graph only exposes volume)
 
@@ -211,6 +238,13 @@ Recent Strength Trainer workouts with **per-exercise aggregates** (set count, to
 - **Filter:** matches sport_name against `/weight|strength|powerlift/i` to catch `weightlifting_msk` (Strength Trainer), `weightlifting`, and `powerlifting`. The older `/strength/i` regex matched none of these — fixed 2026-05-26.
 - **Walk shape:** `cardio-details.weightlifting_cardio_details.weightlifting_exercises.exercise_summary_carousel.items[]`. First item is the workout aggregate row (skip it via `exercise_id === null`), each subsequent item is one exercise.
 - **Per-set detail (set 1: 10 reps @ 200lbs, set 2: ...) is NOT available** in `/cardio-details` — Whoop only exposes exercise-level aggregates here. For per-set numbers across all your workouts, use `whoop_lift_exercise` which hits `/v3/exercise/{id}/exercise_history`. The `sets` array in this response always returns empty `[]`.
+
+#### `whoop_lift_overview`
+One-request recent strength-workout summary. Use `whoop_lift_history` only for per-exercise aggregates.
+
+- **Input:** `{limit?: number, end_date?: string}`
+- **Source:** `GET /developer/v2/activity/workout`
+- **Output:** `{workouts, detailed_aggregate_available_via: "whoop_lift_history"}`
 
 #### `whoop_lift_library`
 Your saved templates. Returns the list or a single template detail.
@@ -235,7 +269,7 @@ Log a finished strength workout. Builds Whoop's full nested `workout_groups → 
 - **Input:** `{name?: string, start?: string, end?: string, exercises: [{exercise_id, sets: [{reps, weight?, time_seconds?, strap_location?}]}], confirm?: boolean}`
 - **Source:** `POST /weightlifting-service/v2/weightlifting-workout/activity`
 - **Output:** `{logged: true, activity_id, exercise_count, set_count, total_volume_kg}` (or preview)
-- **Quirks:** Whoop's POST validates `exercise_details.created_at` and `exercise_details.updated_at` as non-empty ISO timestamps. The MCP populates them automatically. Overlapping time windows return 409. Default duration is 30 minutes ending now if `start`/`end` not passed.
+- **Validation + quirks:** The end must be after the start. Whoop's POST validates `exercise_details.created_at` and `exercise_details.updated_at` as non-empty ISO timestamps; the MCP populates them automatically. Overlapping time windows return 409. Default duration is 30 minutes ending now if `start`/`end` is not passed.
 
 #### `whoop_lift_template_save` ⚠️ WRITE (gated by `whoop_lift_catalog`)
 Create or save-as a workout template (e.g. "Push Day", "Heavy Legs").
@@ -280,14 +314,13 @@ Per-behavior impact analysis — how each tracked behavior has historically move
 - **Output (detail):** `{behavior_id, behavior_name, metrics: [{metric, delta_avg, delta_unit, sample_size, direction}], insight}`
 - **Caveat:** needs journal history — accounts with little/no logged data return an empty list (every behavior `has_sufficient_data: false`). The `impact_uuid` is per-fetch, so always read it from the live list rather than hardcoding.
 
-#### `whoop_journal_log` ⚠️ WRITE (gated by `whoop_journal_catalog`)
-Save a full journal entry. **Replaces** the existing entry for that date with the new set of behaviors — so read `whoop_journal` first and resend the day's existing entries along with your additions, or they'll be wiped. Use empty `behaviors: []` to clear the entry.
+#### `whoop_journal_log` ⚠️ WRITE
+Save a full journal entry. **Replaces** the existing entry for that date with the new set of behaviors — so read `whoop_journal` first and resend the day's existing entries along with your additions, or they'll be wiped. Empty replacements require an explicit destructive override.
 
-- **Input:** `{date?: string, behaviors: [{behavior_tracker_id, answered_yes?, magnitude_value?, magnitude_label?}], notes?: string, confirm?: boolean}`
+- **Input:** `{date?: string, behaviors: [{behavior_tracker_id?, behavior?, answered_yes?, magnitude_value?, magnitude_label?}], notes?: string, allow_empty_replace?: boolean, confirm?: boolean}`
 - **Source:** `PUT /journal-service/v2/journals/entries/user/date/{date}`
 - **Output:** `{logged: true, date, behaviors_count}` (or preview)
-- **Gate:** rejects until `whoop_journal_catalog` has been called once in the session.
-- **Validation:** All `behavior_tracker_id` values are also validated against `BEHAVIORS_BY_ID` before the request fires. Unknown IDs fail early.
+- **Validation:** IDs and exact behavior names resolve locally; the tool validates each behavior's magnitude type before the request fires.
 
 #### `whoop_journal_autopop` ⚠️ WRITE (irreversible)
 Trigger Whoop's auto-populate engine — it reads your HealthKit data and workout patterns and suggests journal entries for the day.
@@ -362,7 +395,8 @@ Update one schedule, the global preferences, or the master enable/disable.
   - `preferences` → `PUT /smart-alarm-service/v1/smartalarm/preferences`
   - `master_enable` → `PUT /smart-alarm-service/v1/alarm-schedule/enable`
   - `master_disable` → `PUT /smart-alarm-service/v1/alarm-schedule/disable`
-- **Output:** `{updated: true, mode}` (or preview)
+- **Output:** `{updated: true, no_change: false, mode}` (or preview). A matching existing schedule or master setting returns `{updated: false, no_change: true, mode}` without writing.
+- **Validation:** schedule days must be non-empty and unique; clock fields and timezone offsets are checked before preview or mutation.
 - **To change the wake time, use `mode=schedule`** (`schedule_id` + `latest_wake_time`) — that's the setting that actually controls when the alarm fires. `mode=preferences` sets the global goal + enable flags, but its `lower/upper_time_bound` are ignored by the server whenever an explicit schedule exists (the PUT returns 200 but the bounds don't change). Read `whoop_smart_alarm` first for the `schedule_id` + current values; schedule/preferences **replace**, they don't merge.
 
 ### Social (2)
@@ -383,7 +417,14 @@ The communities you're a member of (teams, friend groups), each with member coun
 - **Output:** `{total_count, offset, team_type_filter, leaderboard_metric, period, communities: [{id, name, avatar_url, banner_url, about, private, member_count, owner_id, team_type, membership: {member_type, notification_setting, unread_count, online, joined_at, last_online}, rank: {rank, score, metric, period} | null}]}`
 - **Schema status:** permissive at the record level — the per-record field set hasn't been captured against a live account yet, so most fields are nullable. A `WhoopProjectionError` from this tool is the signal that Whoop's actual shape differs from the inferred one and the projection needs tightening.
 
-### Settings (1 read + 3 write)
+### Settings (2 read + 3 write)
+
+#### `whoop_preferences`
+Compact, read-only journal and notification preference switches.
+
+- **Input:** `{include?: ["journal"|"notifications"]}`
+- **Source:** `GET /journal-service/v1/journals/preferences` and/or `GET /notification-service/v1/notifications/user-settings/bff`
+- **Output:** `{journal_enabled?, notifications?: [{namespace, title, enabled}]}`
 
 #### `whoop_hr_zones`
 Current HR zones + max HR + last updated.
@@ -401,14 +442,16 @@ Set max HR (auto-computes 5 zones) OR set custom 5-zone ranges.
 - **Source:**
   - max_hr → `POST /hr-zones-service/v1/maxhr`
   - custom → `POST /hr-zones-service/v1/bff/custom`
-- **Output:** `{updated: true, mode}` (or preview)
+- **Output:** `{updated: true, no_change: false, mode}` (or preview); an identical existing max HR or custom-zone configuration returns `updated: false, no_change: true` without writing.
+- **Validation:** max HR must be a positive integer; custom zones must contain `ZONE_1` through `ZONE_5` exactly once, in order, with increasing non-overlapping ranges.
 
 #### `whoop_profile_update` ⚠️ WRITE
 Update profile: name, email, birthday, gender, weight, height, country/state, city.
 
 - **Input:** `{first_name?, last_name?, email?, birthday?, gender?: "MALE"|"FEMALE"|"NON_BINARY", physiological_baseline?: "MALE"|"FEMALE", weight_kg?, height_m?, city?, state?, country?, unit_system?: "imperial"|"metric", confirm?}`
 - **Source:** `PUT /profile-service/v1/profile`
-- **Output:** `{updated: true, fields_updated: string[]}` (or preview)
+- **Output:** `{updated: true, no_change: false, fields_updated: string[]}` (or preview); values already matching the profile return `updated: false, no_change: true` without writing.
+- **Validation:** at least one field is required; email, birthday, and country formats are checked, country codes are normalized to uppercase, and US profiles require a state.
 - **Live-verified quirks:** Whoop's PUT is NOT a partial update — sending too few fields returns 422. Birthday accepts either `YYYY-MM-DD` or ISO datetime (the MCP auto-trims the time component). Gender enums must be UPPERCASE; `UNSPECIFIED`/`OTHER`/`PREFER_NOT_TO_SAY` are rejected (only `MALE`/`FEMALE`/`NON_BINARY` work). If `country=US`, the API requires `state` to be set too — otherwise 400 `"AdminDivision (state) must be set for US"`.
 
 #### `whoop_hidden_metric` ⚠️ WRITE
@@ -416,7 +459,7 @@ Show or hide BODY_COMP / HEALTHSPAN on your dashboard.
 
 - **Input:** `{metric: "BODY_COMP"|"HEALTHSPAN", action: "hide"|"show", confirm?}`
 - **Source:** `POST /users-service/v1/hidden-metrics/{metric}` (hide) OR `DELETE /users-service/v1/hidden-metrics/{metric}` (show)
-- **Output:** `{updated: true, metric, is_hidden}` (or preview)
+- **Output:** `{updated: true, no_change: false, metric, is_hidden}` (or preview); an already-hidden or already-shown metric returns `updated: false, no_change: true` without writing.
 
 ### Escape hatch (2)
 
@@ -434,4 +477,3 @@ Search the bundled catalog of 311 deduped endpoint paths.
 - **Input:** `{filter?: string, method?: "GET"|"POST"|"PUT"|"DELETE", limit?: number}`
 - **Source:** Bundled `src/data/endpoints.ts`
 - **Output:** `{total_in_catalog, matched, truncated, endpoints: string[]}` (lines like `GET 200 /home-service/v1/home`)
-
