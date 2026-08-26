@@ -15,6 +15,7 @@ import { registerTools } from "./tools/register.js";
 import { startTimezoneAutoDetect } from "./whoop/init_timezone.js";
 import { resolveInstallationId } from "./whoop/installation.js";
 import { versionStaleWarning } from "./whoop/device.js";
+import { BUILD_ID } from "./build_info.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = resolve(__dirname, "../.env");
@@ -38,6 +39,7 @@ function chooseStore(): TokenStore {
 }
 
 async function main(): Promise<void> {
+  console.error(`[totem] build=${BUILD_ID}`);
   // Generate + persist a stable per-install identifier before any request goes
   // out, so every data request carries the same `x-whoop-installation-identifier`
   // the iOS app sends. Persisted to the env file like the tokens.
