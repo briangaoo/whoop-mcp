@@ -6,7 +6,6 @@ import { preview } from "../../whoop/write_safety.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { buildExerciseGroups } from "../../whoop/build_lift_body.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 import { canonicalUtc } from "../../lib/dates.js";
 
@@ -21,7 +20,7 @@ function isValidIanaTimezone(timezone: string): boolean {
   }
 }
 
-export function registerLiftLog(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
+export function registerLiftLog(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_lift_log",
     "WRITE: log a finished strength workout — pass exercises by ID or exact name, each with sets (reps and/or weight in kg and/or time_seconds). Preview unless confirm:true.",

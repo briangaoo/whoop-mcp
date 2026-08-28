@@ -5,10 +5,9 @@ import { LiftExerciseOut } from "../../schemas/strength.js";
 import { projectLiftExercise } from "../../projections/lift_exercise.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 
-export function registerLiftExercise(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
+export function registerLiftExercise(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_lift_exercise",
     "Single exercise composite: metadata + recent sessions (sets with reps/weight/medal) + PRs. Pass an ID or exact official exercise name.",

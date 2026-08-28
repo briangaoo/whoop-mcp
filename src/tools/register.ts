@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WhoopClient } from "../whoop/client.js";
-import { CatalogGate } from "../whoop/session_state.js";
 
 // Snapshots
 import { registerToday } from "./v2/today.js";
@@ -67,11 +66,7 @@ import { registerHiddenMetric } from "./v2/hidden_metric.js";
 import { registerRaw } from "./v2/raw.js";
 import { registerEndpoints } from "./v2/endpoints.js";
 
-export function registerTools(
-  server: McpServer,
-  client: WhoopClient,
-  catalogGate: CatalogGate = new CatalogGate(),
-): void {
+export function registerTools(server: McpServer, client: WhoopClient): void {
   // Reads (32)
   registerToday(server, client);
   registerDay(server, client);
@@ -89,15 +84,15 @@ export function registerTools(
   registerLiveStress(server, client);
   registerWorkouts(server, client);
   registerWorkout(server, client);
-  registerSportsCatalog(server, client, catalogGate);
+  registerSportsCatalog(server, client);
   registerLiftPrs(server, client);
-  registerLiftExercise(server, client, catalogGate);
-  registerLiftProgression(server, client, catalogGate);
+  registerLiftExercise(server, client);
+  registerLiftProgression(server, client);
   registerLiftHistory(server, client);
   registerLiftLibrary(server, client);
-  registerLiftCatalog(server, client, catalogGate);
+  registerLiftCatalog(server, client);
   registerJournal(server, client);
-  registerJournalCatalog(server, client, catalogGate);
+  registerJournalCatalog(server, client);
   registerBehaviorImpact(server, client);
   registerCycle(server, client);
   registerPerformanceAssessment(server, client);
@@ -106,16 +101,16 @@ export function registerTools(
   registerCommunities(server, client);
   registerHrZones(server, client);
   // Writes (15: 14 + coach_ask)
-  registerActivityCreate(server, client, catalogGate);
+  registerActivityCreate(server, client);
   registerActivityDelete(server, client);
   registerSleepEdit(server, client);
-  registerLiftLog(server, client, catalogGate);
-  registerLiftTemplateSave(server, client, catalogGate);
-  registerLiftCustomExercise(server, client, catalogGate);
-  registerJournalLog(server, client, catalogGate);
+  registerLiftLog(server, client);
+  registerLiftTemplateSave(server, client);
+  registerLiftCustomExercise(server, client);
+  registerJournalLog(server, client);
   registerJournalAutopop(server, client);
   registerCycleLog(server, client);
-  registerSymptomLog(server, client, catalogGate);
+  registerSymptomLog(server, client);
   registerSmartAlarmSet(server, client);
   registerHrZonesSet(server, client);
   registerProfileUpdate(server, client);

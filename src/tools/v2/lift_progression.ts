@@ -6,10 +6,9 @@ import { projectLiftProgression } from "../../projections/lift_progression.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 
-export function registerLiftProgression(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
+export function registerLiftProgression(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_lift_progression",
     "Multi-window volume trend for a single exercise: 30-day, 6-month, year segments with avg volume + change % + per-session points. Pass an ID or exact official exercise name.",

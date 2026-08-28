@@ -10,7 +10,7 @@ import { canonicalUtc } from "../../lib/dates.js";
 
 const PATH = "/core-details-bff/v0/create-activity";
 
-export function registerActivityCreate(server: McpServer, client: WhoopClient, _catalogGate: unknown): void {
+export function registerActivityCreate(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_activity_create",
     "WRITE: log a generic off-strap activity over a start–end window of at least 1 minute. Pass a sport_id or an exact sport name; preview unless confirm:true.",

@@ -3,7 +3,6 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WhoopClient } from "../../src/whoop/client.js";
-import { CatalogGate } from "../../src/whoop/session_state.js";
 import { registerSportsCatalog } from "../../src/tools/v2/sports_catalog.js";
 import { registerActivityCreate } from "../../src/tools/v2/activity_create.js";
 import { registerHrZonesSet } from "../../src/tools/v2/hr_zones_set.js";
@@ -37,10 +36,9 @@ describe("write-tool validation through MCP", () => {
   it("rejects short activity windows before preview or mutation", async () => {
     const post = vi.fn();
     const whoop = { post } as unknown as WhoopClient;
-    const gate = new CatalogGate();
     const client = await connect((server) => {
-      registerSportsCatalog(server, whoop, gate);
-      registerActivityCreate(server, whoop, gate);
+      registerSportsCatalog(server, whoop);
+      registerActivityCreate(server, whoop);
     });
     await client.callTool({ name: "whoop_sports_catalog", arguments: { search: "running" } });
     const result = await client.callTool({
@@ -59,10 +57,9 @@ describe("write-tool validation through MCP", () => {
   it("returns a valid preview without mutating, then sends a confirmed activity", async () => {
     const post = vi.fn().mockResolvedValue({ id: "activity-1", cycle_id: 42 });
     const whoop = { post } as unknown as WhoopClient;
-    const gate = new CatalogGate();
     const client = await connect((server) => {
-      registerSportsCatalog(server, whoop, gate);
-      registerActivityCreate(server, whoop, gate);
+      registerSportsCatalog(server, whoop);
+      registerActivityCreate(server, whoop);
     });
     await client.callTool({ name: "whoop_sports_catalog", arguments: {} });
     const args = {
@@ -80,7 +77,7 @@ describe("write-tool validation through MCP", () => {
   it("resolves an exact sport name without a catalog round trip", async () => {
     const post = vi.fn().mockResolvedValue({ id: "activity-1", cycle_id: 42 });
     const whoop = { post } as unknown as WhoopClient;
-    const client = await connect((server) => registerActivityCreate(server, whoop, new CatalogGate()));
+    const client = await connect((server) => registerActivityCreate(server, whoop));
     const result = await client.callTool({
       name: "whoop_activity_create",
       arguments: { sport: "running", start: "2026-08-24T12:00:00-04:00", end: "2026-08-24T12:02:00-04:00", confirm: true },
@@ -96,7 +93,7 @@ describe("write-tool validation through MCP", () => {
   it("returns a structured, actionable WHOOP write rejection", async () => {
     const post = vi.fn().mockRejectedValue(new WhoopApiError(400, "/core-details-bff/v0/create-activity", JSON.stringify({ message: "Window unavailable" }), "Window unavailable"));
     const whoop = { post } as unknown as WhoopClient;
-    const client = await connect((server) => registerActivityCreate(server, whoop, new CatalogGate()));
+    const client = await connect((server) => registerActivityCreate(server, whoop));
     const result = await client.callTool({
       name: "whoop_activity_create",
       arguments: { sport: "Running", start: "2026-08-24T12:00:00-04:00", end: "2026-08-24T12:02:00-04:00", confirm: true },
@@ -131,10 +128,9 @@ describe("write-tool validation through MCP", () => {
   it("rejects reversed strength-workout windows before mutation", async () => {
     const post = vi.fn();
     const whoop = { post } as unknown as WhoopClient;
-    const gate = new CatalogGate();
     const client = await connect((server) => {
-      registerLiftCatalog(server, whoop, gate);
-      registerLiftLog(server, whoop, gate);
+      registerLiftCatalog(server, whoop);
+      registerLiftLog(server, whoop);
     });
     await client.callTool({ name: "whoop_lift_catalog", arguments: { limit: 1 } });
     const result = await client.callTool({
@@ -244,7 +240,7 @@ describe("write-tool validation through MCP", () => {
   it("blocks an empty journal replacement unless explicitly allowed", async () => {
     const put = vi.fn();
     const whoop = { put } as unknown as WhoopClient;
-    const client = await connect((server) => registerJournalLog(server, whoop, new CatalogGate()));
+    const client = await connect((server) => registerJournalLog(server, whoop));
     const result = await client.callTool({ name: "whoop_journal_log", arguments: { behaviors: [], confirm: true } });
     expect(result.isError).toBe(true);
     expect(put).not.toHaveBeenCalled();
@@ -253,7 +249,7 @@ describe("write-tool validation through MCP", () => {
   it("validates a journal behavior's required value shape", async () => {
     const put = vi.fn();
     const whoop = { put } as unknown as WhoopClient;
-    const client = await connect((server) => registerJournalLog(server, whoop, new CatalogGate()));
+    const client = await connect((server) => registerJournalLog(server, whoop));
     const result = await client.callTool({
       name: "whoop_journal_log",
       arguments: { behaviors: [{ behavior: "alcohol", magnitude_value: 2 }], confirm: true },

@@ -3,9 +3,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { LiftCatalogOut } from "../../schemas/strength.js";
 import { EXERCISES } from "../../data/exercises.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 
-export function registerLiftCatalog(server: McpServer, _client: unknown, gate: CatalogGate): void {
+export function registerLiftCatalog(server: McpServer, _client: unknown): void {
   server.tool(
     "whoop_lift_catalog",
     "Search the 372-exercise Strength Trainer catalog to get the exact exercise_id for whoop_lift_log, lift_exercise, or lift_progression. Filter by name substring, muscle, equipment, movement_pattern, or laterality (BILATERAL, LEFT, RIGHT, ALTERNATING), and read the id from the result.",
@@ -18,7 +17,6 @@ export function registerLiftCatalog(server: McpServer, _client: unknown, gate: C
       limit: z.number().int().min(1).max(372).default(50),
     },
     async ({ search, muscle, equipment, movement_pattern, laterality, limit }) => {
-      gate.markConsulted("exercises");
       const s = search?.toLowerCase();
       const matches = EXERCISES.filter((e) => {
         if (s && !(e.name.toLowerCase().includes(s) || e.exercise_id.toLowerCase().includes(s))) return false;

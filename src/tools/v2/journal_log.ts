@@ -7,7 +7,7 @@ import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
 import { BEHAVIORS, BEHAVIORS_BY_ID, BEHAVIORS_BY_NAME } from "../../data/behaviors.js";
 
-export function registerJournalLog(server: McpServer, client: WhoopClient, _catalogGate: unknown): void {
+export function registerJournalLog(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_journal_log",
     "WRITE: save the full journal entry for a date — this REPLACES the whole day's entry, so first call whoop_journal to read what's already logged today and resend those entries together with your additions, or they'll be wiped. Use a behavior_tracker_id or exact behavior title/internal name. Empty replacements require allow_empty_replace:true.",

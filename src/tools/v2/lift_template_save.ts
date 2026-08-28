@@ -6,12 +6,11 @@ import { preview } from "../../whoop/write_safety.js";
 import { WhoopProjectionError } from "../../whoop/errors.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { buildExerciseGroups, type InputExercise } from "../../whoop/build_lift_body.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 import { resolveOfficialExercise } from "../../lib/exercise_lookup.js";
 
 const PATH = "/weightlifting-service/v3/workout-template";
 
-export function registerLiftTemplateSave(server: McpServer, client: WhoopClient, catalogGate: CatalogGate): void {
+export function registerLiftTemplateSave(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_lift_template_save",
     "WRITE: create or save-as a Strength Trainer workout template from exercises by ID or exact name; sets can specify reps and/or weight (kg) and/or time_seconds. Preview unless confirm:true.",

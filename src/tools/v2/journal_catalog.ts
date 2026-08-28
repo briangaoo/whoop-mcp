@@ -3,7 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { JournalCatalogOut } from "../../schemas/journal.js";
 import { BEHAVIORS } from "../../data/behaviors.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import type { CatalogGate } from "../../whoop/session_state.js";
 
 const CATEGORIES = [
   "Drugs & Medication",
@@ -17,7 +16,7 @@ const CATEGORIES = [
   "Supplements",
 ] as const;
 
-export function registerJournalCatalog(server: McpServer, _client: unknown, gate: CatalogGate): void {
+export function registerJournalCatalog(server: McpServer, _client: unknown): void {
   server.tool(
     "whoop_journal_catalog",
     "Search the 308-behavior journal catalog to get a behavior_tracker_id and its magnitude type for whoop_journal_log. Filter by substring, magnitude_type (bare, boolean, or magnitude), or category (Drugs & Medication, Health & Symptoms, Hormonal Health, Lifestyle, Mental Wellbeing, Nutrition, Recovery, Sleep & Circadian Health, Supplements).",
@@ -28,7 +27,6 @@ export function registerJournalCatalog(server: McpServer, _client: unknown, gate
       limit: z.number().int().min(1).max(308).default(100),
     },
     async ({ category, search, magnitude_type, limit }) => {
-      gate.markConsulted("behaviors");
       const s = search?.toLowerCase();
       const matches = BEHAVIORS.filter((b) => {
         if (category && b.category !== category) return false;
