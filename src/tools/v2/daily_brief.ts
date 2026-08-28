@@ -6,6 +6,8 @@ import { projectStrain } from "../../projections/strain.js";
 import { projectSleepNeed } from "../../projections/sleep_need.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
+import { DailyBriefOut } from "../../schemas/compact.js";
+import { WhoopProjectionError } from "../../whoop/errors.js";
 
 const SECTIONS = ["recovery", "sleep", "strain", "sleep_plan", "activity"] as const;
 
@@ -48,7 +50,12 @@ export function registerDailyBrief(server: McpServer, client: WhoopClient): void
       if (sections.includes("activity") && core) out.activity = core.current_state;
       if (sections.includes("strain")) out.strain = strain;
       if (sections.includes("sleep_plan")) out.sleep_plan = sleepPlan;
-      return { content: [{ type: "text", text: jsonOut(out) }] };
+      try {
+        return { content: [{ type: "text", text: jsonOut(DailyBriefOut.parse(out)) }] };
+      } catch (error) {
+        if (error instanceof z.ZodError) throw new WhoopProjectionError("whoop_daily_brief", error);
+        throw error;
+      }
     },
   );
 }

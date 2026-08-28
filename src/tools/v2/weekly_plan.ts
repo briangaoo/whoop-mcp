@@ -4,12 +4,14 @@ import type { WhoopClient } from "../../whoop/client.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
 import { asArray, asNumber, asString, isObject } from "../../lib/walk.js";
+import { WeeklyPlanOut } from "../../schemas/compact.js";
+import { WhoopProjectionError } from "../../whoop/errors.js";
 
 /** A compact projection of Whoop's weekly-plan home tile. */
 export function registerWeeklyPlan(server: McpServer, client: WhoopClient): void {
   server.tool(
     "whoop_weekly_plan",
-    "Weekly-plan progress in a compact, model-friendly form: overall completion plus each active sleep, steps, or strength goal.",
+    "EXPERIMENTAL: Weekly-plan progress in a compact form. Its upstream endpoint has not yet been verified against a live account.",
     { date: z.iso.date().optional().describe("Any date in the target week. Defaults to today.") },
     async ({ date }) => {
       const d = date ?? todayIso();
@@ -33,13 +35,20 @@ export function registerWeeklyPlan(server: McpServer, client: WhoopClient): void
               : null,
         }];
       });
-      return { content: [{ type: "text", text: jsonOut({
+      const out = {
+        experimental: true as const,
         date: d,
         title: asString(content.title),
         days_left: asString(content.days_left_display),
         accomplished_pct: asNumber(progress.percent_value),
         goals,
-      }) }] };
+      };
+      try {
+        return { content: [{ type: "text", text: jsonOut(WeeklyPlanOut.parse(out)) }] };
+      } catch (error) {
+        if (error instanceof z.ZodError) throw new WhoopProjectionError("whoop_weekly_plan", error);
+        throw error;
+      }
     },
   );
 }

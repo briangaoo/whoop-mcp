@@ -5,6 +5,8 @@ import { METRICS } from "../../schemas/trend.js";
 import { projectTrend } from "../../projections/trend.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
+import { TrendPackOut } from "../../schemas/compact.js";
+import { WhoopProjectionError } from "../../whoop/errors.js";
 
 export function registerTrendPack(server: McpServer, client: WhoopClient): void {
   server.tool(
@@ -31,7 +33,12 @@ export function registerTrendPack(server: McpServer, client: WhoopClient): void 
           unit: segment.unit,
         });
       }));
-      return { content: [{ type: "text", text: jsonOut({ end_date: d, window, trends }) }] };
+      try {
+        return { content: [{ type: "text", text: jsonOut(TrendPackOut.parse({ end_date: d, window, trends })) }] };
+      } catch (error) {
+        if (error instanceof z.ZodError) throw new WhoopProjectionError("whoop_trend_pack", error);
+        throw error;
+      }
     },
   );
 }

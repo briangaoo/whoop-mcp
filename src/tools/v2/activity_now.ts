@@ -6,6 +6,8 @@ import { projectLiveState } from "../../projections/live_state.js";
 import { projectLiveStress } from "../../projections/live_stress.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { todayIso } from "../../lib/dates.js";
+import { ActivityNowOut } from "../../schemas/compact.js";
+import { WhoopProjectionError } from "../../whoop/errors.js";
 
 const FIELDS = ["state", "heart_rate", "stress"] as const;
 
@@ -35,13 +37,19 @@ export function registerActivityNow(server: McpServer, client: WhoopClient): voi
       const [state, heartRate, stress] = await Promise.all([
         include.includes("state") ? client.get("/activities-service/v1/user-state").then(projectLiveState) : Promise.resolve(null),
         include.includes("heart_rate") ? client.get("/health-tab-bff/v1/health-tab").then(projectLiveHr) : Promise.resolve(null),
-        include.includes("stress") ? client.get(`/health-service/v2/stress-bff/${date}`).then(projectLiveStress) : Promise.resolve(null),
+        include.includes("stress") ? client.get(`/health-service/v2/stress-bff/${date}`).then((raw) => projectLiveStress(raw, date)) : Promise.resolve(null),
       ]);
-      return { content: [{ type: "text", text: jsonOut({
+      const out = {
         state: state ? { ...state, freshness: liveFreshness(state.latest_metrics_at) } : null,
         heart_rate: heartRate ? { ...heartRate, freshness: liveFreshness(heartRate.last_updated_at) } : null,
         stress: stress ? { ...stress, freshness: liveFreshness(stress.last_updated_at) } : null,
-      }) }] };
+      };
+      try {
+        return { content: [{ type: "text", text: jsonOut(ActivityNowOut.parse(out)) }] };
+      } catch (error) {
+        if (error instanceof z.ZodError) throw new WhoopProjectionError("whoop_activity_now", error);
+        throw error;
+      }
     },
   );
 }

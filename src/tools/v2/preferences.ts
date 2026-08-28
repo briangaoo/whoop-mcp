@@ -3,6 +3,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WhoopClient } from "../../whoop/client.js";
 import { jsonOut } from "../../whoop/json_out.js";
 import { asArray, asBool, asString, isObject } from "../../lib/walk.js";
+import { PreferencesOut } from "../../schemas/compact.js";
+import { WhoopProjectionError } from "../../whoop/errors.js";
 
 /** Compact, read-only account preferences that otherwise require raw API calls. */
 export function registerPreferences(server: McpServer, client: WhoopClient): void {
@@ -29,10 +31,16 @@ export function registerPreferences(server: McpServer, client: WhoopClient): voi
           enabled: asBool(setting.active),
         }];
       });
-      return { content: [{ type: "text", text: jsonOut({
+      const out = {
         ...(wantsJournal ? { journal_enabled: asBool(journalRoot.journal_enabled) } : {}),
         ...(wantsNotifications ? { notifications: settings } : {}),
-      }) }] };
+      };
+      try {
+        return { content: [{ type: "text", text: jsonOut(PreferencesOut.parse(out)) }] };
+      } catch (error) {
+        if (error instanceof z.ZodError) throw new WhoopProjectionError("whoop_preferences", error);
+        throw error;
+      }
     },
   );
 }
