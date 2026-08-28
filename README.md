@@ -277,7 +277,7 @@ Four datasets compiled into the MCP at build time (not fetched at runtime):
 | `sports.ts` | 203 | `whoop_sports_catalog` | `sport_id` ↔ name |
 | `endpoints.ts` | 311 | `whoop_endpoints` | API path search |
 
-**Session-scoped gate**: tools that take IDs from sports/exercises/behaviors refuse to run until the corresponding catalog tool has been called once per session. Keeps ~14k tokens out of the system prompt. AI calling e.g. `whoop_activity_create` first gets `{error: "Must call whoop_sports_catalog first…"}`.
+**Bundled catalogs**: sports, exercises, and journal behaviors are available through local lookup tools. Use them to browse valid IDs; common activity, lift, and journal writes also accept documented exact names where available.
 
 ---
 

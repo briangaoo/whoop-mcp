@@ -110,7 +110,7 @@ Compact aggregate trend summaries for up to five requested metrics; per-day poin
 - **Output:** `{end_date, window, trends: [{metric, avg, min, max, delta_pct, unit}]}` (plus points when requested)
 
 #### `whoop_weekly_plan`
-Compact weekly-plan progress across your active goals.
+**Experimental.** Compact weekly-plan progress across your active goals. The upstream endpoint has not yet been verified against a live account.
 
 - **Input:** `{date?: string}`
 - **Source:** `GET /progression-service/v2/weekly-plan/home-tile/{date}`
@@ -200,7 +200,7 @@ Delete a workout / activity. Cannot be undone — the activity is removed from W
 - **Output:** `{deleted: true, activity_id}` (or preview)
 
 #### `whoop_sports_catalog`
-Local lookup over the bundled 203-sport catalog (numeric `sport_id` ↔ display name). Zero network calls. Calling this once unlocks the catalog gate that protects `whoop_activity_create` for the rest of the session.
+Local lookup over the bundled 203-sport catalog (numeric `sport_id` ↔ display name). Zero network calls.
 
 - **Input:** `{search?: string, limit?: number}`
 - **Source:** Bundled `src/data/sports.ts` (203-entry catalog generated from `/activities-service/v1/sports/history?countryCode=US`)
@@ -263,7 +263,7 @@ Local lookup over the bundled 372-exercise catalog. Zero network calls.
 
 ### Strength writes (3)
 
-#### `whoop_lift_log` ⚠️ WRITE (gated by `whoop_lift_catalog`)
+#### `whoop_lift_log` ⚠️ WRITE
 Log a finished strength workout. Builds Whoop's full nested `workout_groups → workout_exercises → sets` body shape, denormalizing each exercise from the bundled catalog. Validates that every `exercise_id` exists in `EXERCISES_BY_ID` and fails early with a clear error if not.
 
 - **Input:** `{name?: string, start?: string, end?: string, exercises: [{exercise_id, sets: [{reps, weight?, time_seconds?, strap_location?}]}], confirm?: boolean}`
@@ -271,7 +271,7 @@ Log a finished strength workout. Builds Whoop's full nested `workout_groups → 
 - **Output:** `{logged: true, activity_id, exercise_count, set_count, total_volume_kg}` (or preview)
 - **Validation + quirks:** The end must be after the start. Whoop's POST validates `exercise_details.created_at` and `exercise_details.updated_at` as non-empty ISO timestamps; the MCP populates them automatically. Overlapping time windows return 409. Default duration is 30 minutes ending now if `start`/`end` is not passed.
 
-#### `whoop_lift_template_save` ⚠️ WRITE (gated by `whoop_lift_catalog`)
+#### `whoop_lift_template_save` ⚠️ WRITE
 Create or save-as a workout template (e.g. "Push Day", "Heavy Legs").
 
 - **Input:** `{name: string, base_template_key?: number, exercises: [{exercise_id, sets: [{reps, weight, time_seconds}]}], confirm?: boolean}`
@@ -279,7 +279,7 @@ Create or save-as a workout template (e.g. "Push Day", "Heavy Legs").
 - **Output:** `{created: true, template_id, name, exercise_count}` (or preview)
 - **Note:** No delete-template endpoint is wrapped (Whoop's iOS app doesn't expose one either via this URL). Created templates persist.
 
-#### `whoop_lift_custom_exercise` ⚠️ WRITE (gated by `whoop_lift_catalog`)
+#### `whoop_lift_custom_exercise` ⚠️ WRITE
 Create a custom exercise based on an existing official one. Use this when you want to log a variant Whoop doesn't have (e.g. "Spoto Press" based on "Bench Press").
 
 - **Input:** `{name: string, push_core_name: string, muscle_groups: enum[], equipment?: enum, movement_pattern?: enum, laterality?: enum, volume_input_format?: "REPS"|"TIME", exercise_type?: "STRENGTH"|"POWER", instructions?: string[], trackable?: boolean, confirm?: boolean}`
@@ -347,7 +347,7 @@ Log a period start or ovulation event for a date.
 - **Wire format:** Date encoded as `[YYYY, MM, DD]` integer array (this is Whoop's specific quirk).
 - **Output:** `{logged: true, date}` (or preview)
 
-#### `whoop_symptom_log` ⚠️ WRITE (gated by `whoop_journal_catalog` when `symptoms` is non-empty)
+#### `whoop_symptom_log` ⚠️ WRITE
 Log women's-health symptoms — cervical mucus, menstruation flow, and additional tracker symptoms.
 
 - **Input:** `{date: string, menstruation?: enum, cervical_mucus?: enum, symptoms?: [{behavior_tracker_id, answered_yes?}], confirm?: boolean}`
@@ -356,7 +356,6 @@ Log women's-health symptoms — cervical mucus, menstruation flow, and additiona
   - `menstruation`: `none, spotting, light_flow, medium_flow, heavy_flow` (all 5 accepted)
   - `cervical_mucus`: `vaginal-discharge---egg-white, vaginal-discharge---creamy, vaginal-discharge---sticky, vaginal-discharge---watery, vaginal-discharge---grey` (the triple-hyphen is the actual key format; API rejects `"none"` with 422 — omit the field entirely to clear)
 - **Output:** `{logged: true, date, symptoms_count}` (or preview)
-- **Gate:** when `symptoms` is empty (you're only logging menstruation/cervical_mucus), no gate; otherwise requires `whoop_journal_catalog` once per session because `symptoms[].behavior_tracker_id` references the behaviors catalog.
 
 ### Coach + performance (2)
 

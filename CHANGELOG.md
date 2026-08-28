@@ -11,7 +11,6 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ### Fixed
 
-- Catalog lookup gates are now isolated per MCP connection instead of leaking unlock state across HTTP sessions.
 - Write tools reject invalid activity/lift time windows, malformed HR zones, invalid Smart Alarm schedules, and empty or malformed profile updates before preview or mutation.
 - **Live sleep/activity status no longer fails with `Invalid time zone specified`.** A blank dotenv override (`WHOOP_TIMEZONE=`) previously won over the valid fixed offset auto-detected from the profile (for example `-0400`), so `whoop_live_state` and `whoop_sleep` could both error instead of answering whether the member was sleeping, working out, or idle. Blank/invalid overrides are now ignored, fixed profile offsets remain supported, and wall-clock timestamps resolve the correct offset across DST transitions.
 - Blank installation IDs now persist correctly, and a refreshed access token remains usable if disk persistence fails.
