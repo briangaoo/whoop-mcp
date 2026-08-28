@@ -517,7 +517,7 @@ Versions are sourced from the places that already host them — git tags + GitHu
 
 | Approach | Pros | Cons |
 |---|---|---|
-| **This MCP** | Full iOS API surface (49 total: 32 reads + 15 writes + 2 escape hatches), writes supported, structured outputs, auto-refresh, write-safety, session-scoped catalog gate | Unsupported by Whoop (see [FAQ](#faq) for what that means); reverse-engineered (Whoop could break it at any time); local install required |
+| **This MCP** | Full iOS API surface (55 total: 38 reads + 15 writes + 2 escape hatches), writes supported, structured outputs, auto-refresh, write-safety, bundled local catalogs | Unsupported by Whoop (see [FAQ](#faq) for what that means); reverse-engineered (Whoop could break it at any time); local install required |
 | Whoop's public OAuth API | Official, supported, 6 webhook events, scoped permissions | Only 13 endpoints; read-only; no journal/strength/stress/coach/smart-alarm/trends/hypnogram; numeric `sport_id` removed 2025-09-01; 429s exist |
 | HealthKit-based scraper | Bypass Whoop entirely; uses Apple's data sync | Loses Whoop-specific data (recovery score, journal, coach); requires iOS device involvement |
 | Direct mitmproxy capture | See everything | Manual, not programmable, doesn't scale |
