@@ -123,6 +123,23 @@ describe("WhoopClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("uses the member's configured timezone when deciding whether a date is historical", async () => {
+    const previousTimezone = process.env.WHOOP_TIMEZONE;
+    process.env.WHOOP_TIMEZONE = "America/Los_Angeles";
+    try {
+      let now = Date.parse("2026-08-24T01:00:00.000Z"); // Aug 23 in Los Angeles
+      fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ score: 1 }), { status: 200 })));
+      const client = new WhoopClient({ getToken: async () => "test-bearer", now: () => now });
+      await client.get("/home-service/v1/home", { date: "2026-08-23" });
+      now += 30_001;
+      await client.get("/home-service/v1/home", { date: "2026-08-23" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      if (previousTimezone === undefined) delete process.env.WHOOP_TIMEZONE;
+      else process.env.WHOOP_TIMEZONE = previousTimezone;
+    }
+  });
+
   it("normalizes query ordering and evicts the least-recently-used entry at 100 values", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })));
     const client = makeClient();

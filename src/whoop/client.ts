@@ -1,5 +1,6 @@
 import { BASE_URL, API_VERSION, REQUEST_TIMEOUT_MS } from "./constants.js";
 import { deviceHeaders } from "./device.js";
+import { isoDay } from "../lib/dates.js";
 import {
   WhoopApiError,
   WhoopAuthExpiredError,
@@ -139,7 +140,11 @@ function cachePolicy(
   // than in a query parameter. Treat them consistently with query-based reads.
   const pathDate = path.match(/\/(\d{4}-\d{2}-\d{2})(?:\/|$)/)?.[1];
   const dateHint = typeof suppliedDate === "string" ? suppliedDate.slice(0, 10) : pathDate;
-  const historical = Boolean(dateHint && dateHint < new Date(now()).toISOString().slice(0, 10));
+  // Dates represent the member's day, not UTC server time. Current-day reads
+  // use the following bounded TTLs: home 30s; activity 60s; recovery, sleep,
+  // trends, lifts, communities and journal 5m; calendar 15m; settings 10m.
+  // Historical reads may use their longer endpoint-specific TTLs below.
+  const historical = Boolean(dateHint && dateHint < isoDay(new Date(now())));
   // Freshness-sensitive endpoints must never return a completed cached value.
   if (
     path === "/health-tab-bff/v1/health-tab" ||
