@@ -4,6 +4,38 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+A reliability + efficiency pass, landed as a series of focused PRs (#15–#22, #24) reviewed individually. Tool count 49 → **55**; test suite → **278**.
+
+### Added
+
+- **Six compact / aggregate read tools** (`src/schemas/compact.ts`): `whoop_daily_brief` (section-selectable daily context sharing the `today`/`strain`/`sleep_need` reads), `whoop_activity_now` (fresh live snapshot across the never-cached live endpoints, with per-field freshness metadata), `whoop_trend_pack` (up to 5 metrics in one call), `whoop_lift_overview` (recent strength workouts from a single list request), `whoop_preferences` (journal + notification settings), and `whoop_weekly_plan` (**experimental** — its endpoint shape isn't verified against a live account yet, so output is marked `experimental: true` and may be null-heavy). Each validates its output against a per-tool zod schema, so shape drift raises `WhoopProjectionError` like every other tool.
+- **Bounded in-memory read cache** (`src/whoop/client.ts`): a process-local LRU (≤100 entries / ≤10 MiB) that coalesces identical in-flight GETs and caches only completed, non-`pending` responses under explicit per-endpoint TTLs. Live HR / activity state / stress are never retained; every write invalidates the related tags; nothing is persisted or logged. Current-day TTLs: home 30s; activity + sleep-need 60s; recovery/sleep/trends/lifts/journal 5m; calendar 15m; settings 10m (historical dates cached longer). The current-vs-historical split resolves the day in the user's timezone, not the UTC server date.
+- **Live freshness metadata** on `whoop_live_hr` / `whoop_live_state` / `whoop_live_stress` (`fetched_at`, `source_updated_at`, `source_age_ms`, `completed_cache: "bypassed"`).
+- **Build identity in `/health`** (`{status, build}` + `x-totem-build` header) and a boot log line, for unambiguous deployment verification.
+
+### Changed
+
+- **Removed the session-scoped catalog gate** (`src/whoop/session_state.ts` deleted). It had become inconsistently applied, and the ID-taking write tools now validate an ID — or an **exact bundled catalog name** — locally before any request fires, which is a stronger and uniform guard. `whoop_activity_create`, `whoop_lift_log`, `whoop_lift_exercise`, `whoop_lift_progression`, `whoop_lift_template_save`, `whoop_journal_log`, and `whoop_symptom_log` no longer have a "call the catalog first" prerequisite.
+- **Stricter local write validation**, reported as structured MCP errors instead of opaque upstream 400s: activity duration (≥1 min), HR-zone order/range/overlap, comparison-metric de-duplication, journal empty-replacement guard (`allow_empty_replace`) and per-behavior value shape, and Smart Alarm clock/day validation. Activity, lift, and sleep write times are sent as canonical UTC (the undocumented create endpoints reject offset-form timestamps).
+- **No-op write detection**: identical profile, HR-zone, hidden-metric, Smart Alarm, and sleep-edit requests now return `{ updated/edited: false, no_change: true }` without mutating the account. (`SmartAlarmSetOut` / `SleepEditOut` / settings receipts gained a `no_change` field; `updated`/`edited` are now `boolean`.)
+- **`whoop_coach_ask`** now polls against a true 30-second wall-clock deadline (was up to ~42s from a fixed iteration count) and guards missing conversation/turn IDs.
+- **Smart Alarm projection** reads the current `alarm_on` / `scheduled_days` response fields with a fallback to the legacy `enabled` / `day_of_week_list` shape; human-friendly clock inputs are normalized.
+- **`whoop_calendar`** drops the redundant second request — it uses the recovery endpoint and only falls back to overview on failure.
+
+### Fixed
+
+- **Timezone hardening**: an invalid `WHOOP_TIMEZONE` is now validated and falls back to the profile/system zone (previously it could throw mid-tool); `wallClockIso` resolves the offset at the represented local instant (DST-correct); `*_utc` output fields are preserved as literal UTC. `whoop_live_stress` freshness timestamps are anchored to the real date instead of `1970-01-01`.
+- **Auth resilience**: the Cognito auth request now has a timeout; a token-persistence failure (read-only FS) no longer crashes a refresh (keeps the fresh in-memory token); blank/duplicate `WHOOP_INSTALLATION_ID` lines are repaired.
+- Sleep-performance projection consistency and hidden-metric state detection.
+
+### Dependencies
+
+- `@modelcontextprotocol/sdk` `^1.29.0` → `^1.30.0`.
+
+### Not included (deliberately)
+
+- **OAuth `resource`-claim enforcement** (RFC 8707 audience binding) stays **log-only**. Flipping it to a hard reject risks 401-ing a valid claude.ai token and bricking the web/mobile connector, so it waits until it can be exercised against a live connector.
+
 ## [1.4.4] — 2026-06-11
 
 ### Changed

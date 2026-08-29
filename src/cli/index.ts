@@ -88,7 +88,7 @@ function printBanner(): void {
     "",
     w(ANSI.brandDim, "   ▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁"),
     "",
-    `   ${w(ANSI.bold, "v" + VERSION)}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "49 tools")}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "47 microservices")}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "311 endpoints")}`,
+    `   ${w(ANSI.bold, "v" + VERSION)}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "55 tools")}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "47 microservices")}  ${w(ANSI.gray, "·")}  ${w(ANSI.white, "311 endpoints")}`,
     "",
   ];
   for (const line of lines) console.error(line);
@@ -312,17 +312,18 @@ const commands: Record<string, Cmd> = {
   },
   tools: {
     group: "Inspect",
-    desc: "List the MCP tools the server exposes (49 total)",
+    desc: "List the MCP tools the server exposes (55 total)",
     run: async () => {
       const reads = [
-        "whoop_today", "whoop_day", "whoop_profile", "whoop_calendar", "whoop_recovery",
-        "whoop_sleep", "whoop_strain", "whoop_trend", "whoop_compare", "whoop_stress",
-        "whoop_sleep_need", "whoop_live_hr", "whoop_live_state", "whoop_live_stress",
-        "whoop_workouts", "whoop_workout", "whoop_sports_catalog", "whoop_lift_prs",
-        "whoop_lift_exercise", "whoop_lift_progression", "whoop_lift_history",
-        "whoop_lift_library", "whoop_lift_catalog", "whoop_journal", "whoop_journal_catalog",
-        "whoop_behavior_impact", "whoop_cycle", "whoop_performance_assessment",
-        "whoop_smart_alarm", "whoop_leaderboard", "whoop_communities", "whoop_hr_zones",
+        "whoop_today", "whoop_day", "whoop_daily_brief", "whoop_weekly_plan", "whoop_profile",
+        "whoop_calendar", "whoop_recovery", "whoop_sleep", "whoop_strain", "whoop_trend",
+        "whoop_trend_pack", "whoop_compare", "whoop_stress", "whoop_sleep_need", "whoop_live_hr",
+        "whoop_live_state", "whoop_live_stress", "whoop_activity_now", "whoop_workouts",
+        "whoop_workout", "whoop_sports_catalog", "whoop_lift_prs", "whoop_lift_exercise",
+        "whoop_lift_progression", "whoop_lift_history", "whoop_lift_overview", "whoop_lift_library",
+        "whoop_lift_catalog", "whoop_journal", "whoop_journal_catalog", "whoop_behavior_impact",
+        "whoop_cycle", "whoop_performance_assessment", "whoop_smart_alarm", "whoop_leaderboard",
+        "whoop_communities", "whoop_hr_zones", "whoop_preferences",
       ];
       const writes = [
         "whoop_activity_create", "whoop_activity_delete", "whoop_sleep_edit", "whoop_lift_log",

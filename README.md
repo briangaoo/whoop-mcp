@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="totem — 49 tools, 47 microservices, 311 endpoints" width="820">
+  <img src="assets/banner.svg" alt="totem — 55 tools, 47 microservices, 311 endpoints" width="820">
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tools-48-9ca3af?style=flat-square" alt="tools">
+  <img src="https://img.shields.io/badge/tools-55-9ca3af?style=flat-square" alt="tools">
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="typescript">
   <img src="https://img.shields.io/badge/Node-24%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="node">
   <img src="https://img.shields.io/badge/MCP-1.x%2B-9ca3af?style=flat-square" alt="mcp">
@@ -30,7 +30,7 @@
   <sub>▶ 2-min demo — the full <code>totem cloud</code> flow: install → Whoop login → Fly deploy → Claude connector → first query.</sub>
 </p>
 
-49 tools, structured zod-validated outputs, bundled catalogs (372 exercises, 308 behaviors, 203 sports, 311 endpoints), write-safety harness, automatic Cognito token refresh, session-scoped catalog gate. TypeScript 6, Node 24, 235 tests.
+55 tools, structured zod-validated outputs, bundled catalogs (372 exercises, 308 behaviors, 203 sports, 311 endpoints), write-safety harness, automatic Cognito token refresh, bounded in-memory read cache. TypeScript 6, Node 24, 278 tests.
 
 > **Totem is becoming a universal wearables bridge.** Whoop is the first adapter — every metric, fully wired. Fitbit, Apple Watch, and Garmin are in progress ([contributors welcome](CONTRIBUTING.md)). The MCP + projection layer is device-agnostic; an adapter just maps its source into the same shared schemas, so everything below applies to whatever you wear.
 
@@ -44,7 +44,7 @@
 2. [Why this exists](#why-this-exists)
 3. [What it does](#what-it-does)
 4. [Architecture](#architecture)
-5. [The 49 tools](#the-49-tools)
+5. [The 55 tools](#the-55-tools)
 6. [Authentication](#authentication)
 7. [Write-safety harness](#write-safety-harness)
 8. [Bundled catalogs](#bundled-catalogs)
@@ -146,7 +146,7 @@ If recovery + sleep totals + workout list is enough for you, use the public OAut
 
 ## What it does
 
-The MCP runs as a local Node process. It speaks **Model Context Protocol** over stdio (or HTTP for remote deployments), registers 49 tools at startup, and waits for tool calls from a connected MCP client.
+The MCP runs as a local Node process. It speaks **Model Context Protocol** over stdio (or HTTP for remote deployments), registers 55 tools at startup, and waits for tool calls from a connected MCP client.
 
 When a tool is called:
 
@@ -158,7 +158,7 @@ When a tool is called:
 
 Writes follow the same path plus a **preview gate**: every write tool defaults `confirm: false`, returning a preview of what would be sent. Claude must explicitly re-call with `confirm: true` to fire.
 
-See [The 49 tools](#the-49-tools) for the full per-tool reference.
+See [The 55 tools](#the-55-tools) for the full per-tool reference.
 
 ---
 
@@ -194,29 +194,29 @@ When Whoop changes a response shape, the projection emits unexpected data, zod's
 
 ---
 
-## The 49 tools
+## The 55 tools
 
-Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked 🔒 are gated — the catalog tool in the same group must be called once per session before they'll run.
+Compact summary. **Full per-tool reference (input shape · source endpoints · output shape · notes) → [`TOOLS.md`](TOOLS.md).** Tools marked ⚠️ are writes (default `confirm: false`, preview-first). Tools marked ⚡ are compact/aggregate reads that fold several source calls into one lower-token response; `whoop_weekly_plan` is ⚡ **experimental** (its endpoint shape hasn't been verified against a live account yet).
 
 | Group | Tools |
 |---|---|
-| **Snapshots & profile** (4) | `whoop_today` · `whoop_day` · `whoop_profile` · `whoop_calendar` |
+| **Snapshots & profile** (6) | `whoop_today` · `whoop_day` · `whoop_daily_brief` ⚡ · `whoop_weekly_plan` ⚡ · `whoop_profile` · `whoop_calendar` |
 | **Deep dives** (3) | `whoop_recovery` · `whoop_sleep` · `whoop_strain` |
-| **Trends** (2) | `whoop_trend` · `whoop_compare` |
+| **Trends** (3) | `whoop_trend` · `whoop_trend_pack` ⚡ · `whoop_compare` |
 | **Stress + sleep coach** (2) | `whoop_stress` · `whoop_sleep_need` |
-| **Live** (3) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` |
-| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️🔒 · `whoop_activity_delete` ⚠️ |
-| **Strength reads** (6) | `whoop_lift_prs` · `whoop_lift_exercise` 🔒 · `whoop_lift_progression` 🔒 · `whoop_lift_history` · `whoop_lift_library` · `whoop_lift_catalog` |
-| **Strength writes** (3) | `whoop_lift_log` ⚠️🔒 · `whoop_lift_template_save` ⚠️🔒 · `whoop_lift_custom_exercise` ⚠️🔒 |
-| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️🔒 · `whoop_journal_autopop` ⚠️ |
-| **Women's health** (3) | `whoop_cycle` · `whoop_cycle_log` ⚠️ · `whoop_symptom_log` ⚠️🔒 |
+| **Live** (4) | `whoop_live_hr` · `whoop_live_state` · `whoop_live_stress` · `whoop_activity_now` ⚡ |
+| **Activities** (5) | `whoop_workouts` · `whoop_workout` · `whoop_sports_catalog` · `whoop_activity_create` ⚠️ · `whoop_activity_delete` ⚠️ |
+| **Strength reads** (7) | `whoop_lift_prs` · `whoop_lift_exercise` · `whoop_lift_progression` · `whoop_lift_history` · `whoop_lift_overview` ⚡ · `whoop_lift_library` · `whoop_lift_catalog` |
+| **Strength writes** (3) | `whoop_lift_log` ⚠️ · `whoop_lift_template_save` ⚠️ · `whoop_lift_custom_exercise` ⚠️ |
+| **Journal** (5) | `whoop_journal` · `whoop_journal_catalog` · `whoop_behavior_impact` · `whoop_journal_log` ⚠️ · `whoop_journal_autopop` ⚠️ |
+| **Women's health** (3) | `whoop_cycle` · `whoop_cycle_log` ⚠️ · `whoop_symptom_log` ⚠️ |
 | **Coach + performance** (2) | `whoop_coach_ask` ⚠️ · `whoop_performance_assessment` |
 | **Smart alarm** (2) | `whoop_smart_alarm` · `whoop_smart_alarm_set` ⚠️ |
 | **Social** (2) | `whoop_leaderboard` · `whoop_communities` |
-| **Settings** (4) | `whoop_hr_zones` · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
+| **Settings** (5) | `whoop_hr_zones` · `whoop_preferences` ⚡ · `whoop_hr_zones_set` ⚠️ · `whoop_profile_update` ⚠️ · `whoop_hidden_metric` ⚠️ |
 | **Escape hatch** (2) | `whoop_raw` · `whoop_endpoints` |
 
-**Total: 49** (32 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
+**Total: 55** (38 reads + 15 writes + 2 escape hatches). For each tool's input args, source endpoint(s), and output shape, see [`TOOLS.md`](TOOLS.md).
 
 ---
 
@@ -277,7 +277,7 @@ Four datasets compiled into the MCP at build time (not fetched at runtime):
 | `sports.ts` | 203 | `whoop_sports_catalog` | `sport_id` ↔ name |
 | `endpoints.ts` | 311 | `whoop_endpoints` | API path search |
 
-**Session-scoped gate**: tools that take IDs from sports/exercises/behaviors refuse to run until the corresponding catalog tool has been called once per session. Keeps ~14k tokens out of the system prompt. AI calling e.g. `whoop_activity_create` first gets `{error: "Must call whoop_sports_catalog first…"}`.
+**Local lookups, no prompt bloat**: the catalog tools are zero-network local searches, so the full 372-exercise / 308-behavior / 203-sport lists stay out of the system prompt (~14k tokens saved). The ID-taking write tools (`whoop_activity_create`, `whoop_lift_log`, `whoop_journal_log`, …) validate their IDs — or an exact catalog name — against these bundled datasets before any request fires, rejecting unknown values with an actionable error. (A session-scoped "must call the catalog first" gate existed through 1.4.4; it was removed in favor of this consistent local validation.)
 
 ---
 
@@ -315,7 +315,7 @@ The MCP loads `.env` from the repo root (relative to `server.js`). Use absolute 
 
 ## Remote hosting
 
-The MCP also speaks HTTP — deploy once, use from multiple devices. Same 49 tools, same auto-refresh, behind a bearer-token gate at a URL.
+The MCP also speaks HTTP — deploy once, use from multiple devices. Same 55 tools, same auto-refresh, behind a bearer-token gate at a URL.
 
 ```bash
 # 1. Local bootstrap (Cognito needs an interactive MFA prompt)
@@ -517,7 +517,7 @@ Versions are sourced from the places that already host them — git tags + GitHu
 
 | Approach | Pros | Cons |
 |---|---|---|
-| **This MCP** | Full iOS API surface (49 total: 32 reads + 15 writes + 2 escape hatches), writes supported, structured outputs, auto-refresh, write-safety, session-scoped catalog gate | Unsupported by Whoop (see [FAQ](#faq) for what that means); reverse-engineered (Whoop could break it at any time); local install required |
+| **This MCP** | Full iOS API surface (55 total: 38 reads + 15 writes + 2 escape hatches), writes supported, structured outputs, auto-refresh, write-safety, bounded read cache | Unsupported by Whoop (see [FAQ](#faq) for what that means); reverse-engineered (Whoop could break it at any time); local install required |
 | Whoop's public OAuth API | Official, supported, 6 webhook events, scoped permissions | Only 13 endpoints; read-only; no journal/strength/stress/coach/smart-alarm/trends/hypnogram; numeric `sport_id` removed 2025-09-01; 429s exist |
 | HealthKit-based scraper | Bypass Whoop entirely; uses Apple's data sync | Loses Whoop-specific data (recovery score, journal, coach); requires iOS device involvement |
 | Direct mitmproxy capture | See everything | Manual, not programmable, doesn't scale |
