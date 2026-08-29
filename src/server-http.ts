@@ -91,7 +91,7 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
       }
     }
     const newId = randomUUID();
-    const newServer = new McpServer({ name: "totem", version: "1.4.4" });
+    const newServer = new McpServer({ name: "totem", version: "1.5.0" });
     registerTools(newServer, client);
     const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => newId,

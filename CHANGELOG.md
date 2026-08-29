@@ -4,6 +4,8 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-08-28
+
 A reliability + efficiency pass, landed as a series of focused PRs (#15–#22, #24) reviewed individually. Tool count 49 → **55**; test suite → **278**.
 
 ### Added
