@@ -4,7 +4,7 @@ import type { WhoopClient } from "../../whoop/client.js";
 import { SleepEditOut } from "../../schemas/sleep.js";
 import { preview } from "../../whoop/write_safety.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import { todayIso } from "../../lib/dates.js";
+import { canonicalUtc, todayIso } from "../../lib/dates.js";
 import { isObject, asString } from "../../lib/walk.js";
 
 // The sleep's activity_id + current window live at
@@ -52,8 +52,8 @@ export function registerSleepEdit(server: McpServer, client: WhoopClient): void 
       }
 
       // The app sends the window in UTC; toISOString() produces that exact format.
-      const startTime = new Date(startMs).toISOString();
-      const endTime = new Date(endMs).toISOString();
+      const startTime = canonicalUtc(startMs);
+      const endTime = canonicalUtc(endMs);
       const path = `/core-details-bff/v2/sleep-details/${sleep.activityId}`;
       const body: Record<string, unknown> = { start_time: startTime, end_time: endTime };
       if (resolve_overlaps !== undefined) body.resolve_overlaps = resolve_overlaps;
@@ -62,8 +62,15 @@ export function registerSleepEdit(server: McpServer, client: WhoopClient): void 
         return { content: [{ type: "text", text: jsonOut(preview("PUT", path, body)) }] };
       }
 
+      const currentStart = sleep.start ? canonicalUtc(sleep.start) : null;
+      const currentEnd = sleep.end ? canonicalUtc(sleep.end) : null;
+      if (startTime === currentStart && endTime === currentEnd && !resolve_overlaps) {
+        const out = SleepEditOut.parse({ edited: false, no_change: true, activity_id: sleep.activityId, start: startTime, end: endTime });
+        return { content: [{ type: "text", text: jsonOut(out) }] };
+      }
+
       await client.put(path, body);
-      const out = SleepEditOut.parse({ edited: true as const, activity_id: sleep.activityId, start: startTime, end: endTime });
+      const out = SleepEditOut.parse({ edited: true, no_change: false, activity_id: sleep.activityId, start: startTime, end: endTime });
       return { content: [{ type: "text", text: jsonOut(out) }] };
     },
   );

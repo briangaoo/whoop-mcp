@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SPORTS } from "../../data/sports.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import { markConsulted } from "../../whoop/session_state.js";
 
 export function registerSportsCatalog(server: McpServer, _client: unknown): void {
   server.tool(
@@ -13,7 +12,6 @@ export function registerSportsCatalog(server: McpServer, _client: unknown): void
       limit: z.number().int().min(1).max(203).default(100),
     },
     async ({ search, limit }) => {
-      markConsulted("sports");
       const s = search?.toLowerCase();
       const matches = SPORTS.filter((sp) => (s ? sp.name.toLowerCase().includes(s) : true));
       return {

@@ -3,7 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { LiftCatalogOut } from "../../schemas/strength.js";
 import { EXERCISES } from "../../data/exercises.js";
 import { jsonOut } from "../../whoop/json_out.js";
-import { markConsulted } from "../../whoop/session_state.js";
 
 export function registerLiftCatalog(server: McpServer, _client: unknown): void {
   server.tool(
@@ -18,7 +17,6 @@ export function registerLiftCatalog(server: McpServer, _client: unknown): void {
       limit: z.number().int().min(1).max(372).default(50),
     },
     async ({ search, muscle, equipment, movement_pattern, laterality, limit }) => {
-      markConsulted("exercises");
       const s = search?.toLowerCase();
       const matches = EXERCISES.filter((e) => {
         if (s && !(e.name.toLowerCase().includes(s) || e.exercise_id.toLowerCase().includes(s))) return false;

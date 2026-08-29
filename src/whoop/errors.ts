@@ -1,5 +1,19 @@
 import type { z } from "zod";
 
+/** Extract only conventional API validation fields; never echo an arbitrary body. */
+export function apiErrorDetail(body: string): string | undefined {
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    for (const key of ["error_description", "error", "message", "detail"]) {
+      const value = parsed[key];
+      if (typeof value === "string" && value.trim()) return value.trim().replace(/\s+/g, " ").slice(0, 300);
+    }
+  } catch {
+    // A non-JSON 4xx body is intentionally not exposed to the model.
+  }
+  return undefined;
+}
+
 export class WhoopAuthExpiredError extends Error {
   constructor() {
     super(
