@@ -41,6 +41,7 @@ export function registerRaw(server: McpServer, client: WhoopClient): void {
           response = await client.delete(safePath, query ?? {});
           break;
       }
+      if (isMutate) client.invalidateAll();
       // The client throws on non-2xx, so reaching here means success; it doesn't
       // surface the exact code, so 200 stands in for any 2xx (incl. 201/204).
       const out = RawOut.parse({ path: safePath, method, status: 200, response });
